@@ -1,0 +1,795 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Slope Monitoring 3D Viewer</title>
+
+  <!-- Library dari CDN -->
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dxf-parser@1.1.2/dist/dxf-parser.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/delaunator@5.0.1/delaunator.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #f5f5f7; color: #1d1d1f; overflow: hidden;
+    }
+    #app { display: grid; grid-template-columns: 300px 1fr; height: 100vh; }
+    #sidebar {
+      background: #fff; border-right: 1px solid #e5e5e7;
+      padding: 20px; overflow-y: auto;
+    }
+    #sidebar h1 { font-size: 18px; margin-bottom: 4px; }
+    #sidebar h2 {
+      font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;
+      color: #6e6e73; margin-top: 20px; margin-bottom: 10px; font-weight: 600;
+    }
+    p.subtitle { font-size: 12px; color: #6e6e73; margin-bottom: 16px; line-height: 1.4; }
+    .control-group { margin-bottom: 12px; }
+    .control-group label { display: block; font-size: 12px; color: #424245; margin-bottom: 4px; }
+    .control-group .value { font-weight: 600; color: #1d1d1f; }
+    input[type="range"] { width: 100%; accent-color: #0071e3; }
+    .toggle {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 6px 0; font-size: 13px;
+    }
+    .toggle input { accent-color: #0071e3; }
+    .file-input-group { margin-bottom: 10px; }
+    .file-input-group label {
+      display: block; font-size: 12px; color: #424245; margin-bottom: 4px; font-weight: 500;
+    }
+    .file-input-group input[type="file"] { font-size: 11px; width: 100%; }
+    button {
+      background: #0071e3; color: white; border: none;
+      padding: 8px 16px; border-radius: 6px; font-size: 13px;
+      cursor: pointer; width: 100%;
+    }
+    button:hover { background: #0077ed; }
+    button:disabled { background: #c6c6c8; cursor: not-allowed; }
+    button.secondary {
+      background: #f5f5f7; color: #1d1d1f; border: 1px solid #d2d2d7;
+    }
+    button.secondary:hover { background: #e5e5e7; }
+    #stats {
+      font-size: 11px; color: #6e6e73; line-height: 1.5;
+      padding: 10px; background: #f5f5f7; border-radius: 6px;
+    }
+    #stats .stat-row { display: flex; justify-content: space-between; margin-bottom: 3px; }
+    .legend-item { display: flex; align-items: center; gap: 8px; font-size: 12px; margin-bottom: 4px; }
+    .legend-swatch { width: 12px; height: 12px; border-radius: 2px; }
+    .legend-line { width: 16px; height: 3px; }
+    #plot { width: 100%; height: 100vh; }
+    #loading {
+      position: absolute; top: 50%; left: calc(50% + 150px);
+      transform: translate(-50%, -50%);
+      background: rgba(255,255,255,0.95); padding: 24px 32px;
+      border-radius: 12px; box-shadow: 0 4px 24px rgba(0,0,0,0.12);
+      text-align: center; z-index: 10; min-width: 280px;
+    }
+    #loading.hidden { display: none; }
+    .spinner {
+      width: 32px; height: 32px;
+      border: 3px solid #e5e5e7; border-top-color: #0071e3;
+      border-radius: 50%; animation: spin 0.8s linear infinite;
+      margin: 0 auto 12px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    #status { font-size: 13px; color: #424245; }
+    .error {
+      background: #ffebe6; color: #c41e3a; padding: 10px;
+      border-radius: 6px; font-size: 11px; margin-top: 10px; line-height: 1.4;
+    }
+    .info-box {
+      background: #eff6ff; color: #1e40af; padding: 10px;
+      border-radius: 6px; font-size: 11px; line-height: 1.4; margin-bottom: 12px;
+    }
+    #mode-indicator {
+      display: inline-block; font-size: 10px; padding: 2px 8px;
+      border-radius: 10px; background: #f5f5f7; color: #6e6e73;
+      margin-left: 8px;
+    }
+    #mode-indicator.auto { background: #dcfce7; color: #166534; }
+    .section-collapsed { display: none; }
+    .collapse-toggle {
+      cursor: pointer; user-select: none;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .collapse-toggle::after {
+      content: '▼'; font-size: 9px; color: #6e6e73;
+    }
+    .collapse-toggle.collapsed::after { content: '▶'; }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <aside id="sidebar">
+      <h1>Slope Monitor 3D <span id="mode-indicator">Manual</span></h1>
+      <p class="subtitle">Visualisasi pergerakan titik monitoring di topografi 3D</p>
+
+      <h2 class="collapse-toggle" id="upload-section-toggle">Input Data Manual</h2>
+      <div id="upload-section">
+        <div class="info-box" id="upload-info">
+          Upload file DXF dan CSV untuk visualisasi. Data diproses di browser &mdash; tidak dikirim ke server.
+        </div>
+        <div class="file-input-group">
+          <label>File DXF topografi</label>
+          <input type="file" id="dxf-input" accept=".dxf" />
+        </div>
+        <div class="file-input-group">
+          <label>File CSV monitoring</label>
+          <input type="file" id="csv-input" accept=".csv" />
+        </div>
+        <button id="load-btn" disabled>Muat &amp; Visualisasikan</button>
+      </div>
+
+      <h2>Topografi</h2>
+      <div class="control-group">
+        <label>Transparansi: <span class="value" id="opacity-val">50%</span></label>
+        <input type="range" id="opacity" min="0" max="100" value="50" />
+      </div>
+      <div class="control-group">
+        <label>Voxel size: <span class="value" id="voxel-val">2 m</span></label>
+        <input type="range" id="voxel" min="1" max="10" step="0.5" value="2" />
+      </div>
+      <div class="toggle">
+        <span>Tampilkan topografi</span>
+        <input type="checkbox" id="show-topo" checked />
+      </div>
+      <div class="toggle">
+        <span>Color by elevation</span>
+        <input type="checkbox" id="color-by-elev" checked />
+      </div>
+      <button id="reprocess-btn" class="secondary" style="margin-top:8px; display:none;">
+        Proses Ulang dengan Voxel Baru
+      </button>
+
+      <h2>Vektor Pergerakan</h2>
+      <div class="control-group">
+        <label>Skala horizontal: <span class="value" id="scale-h-val">100×</span></label>
+        <input type="range" id="scale-h" min="10" max="500" step="10" value="100" />
+      </div>
+      <div class="control-group">
+        <label>Skala vertikal: <span class="value" id="scale-v-val">200×</span></label>
+        <input type="range" id="scale-v" min="10" max="1000" step="10" value="200" />
+      </div>
+      <div class="toggle">
+        <span>Panah horizontal</span>
+        <input type="checkbox" id="show-h" checked />
+      </div>
+      <div class="toggle">
+        <span>Panah vertikal</span>
+        <input type="checkbox" id="show-v" checked />
+      </div>
+      <div class="toggle">
+        <span>Label titik</span>
+        <input type="checkbox" id="show-labels" />
+      </div>
+
+      <h2>Legenda</h2>
+      <div class="legend-item">
+        <div class="legend-swatch" style="background:#2ecc71"></div>
+        <span>Aman (&le;5 mm)</span>
+      </div>
+      <div class="legend-item">
+        <div class="legend-swatch" style="background:#f1c40f"></div>
+        <span>Waspada (5&ndash;15 mm)</span>
+      </div>
+      <div class="legend-item">
+        <div class="legend-swatch" style="background:#e74c3c"></div>
+        <span>Bahaya (&gt;15 mm)</span>
+      </div>
+      <div class="legend-item" style="margin-top:6px">
+        <div class="legend-line" style="background:#1f5f8b"></div>
+        <span>Settling (turun)</span>
+      </div>
+      <div class="legend-item">
+        <div class="legend-line" style="background:#3498db"></div>
+        <span>Heaving (naik)</span>
+      </div>
+
+      <h2>Statistik</h2>
+      <div id="stats">
+        <div class="stat-row"><span>Titik:</span><span id="stat-points">&mdash;</span></div>
+        <div class="stat-row"><span>Vertex topo:</span><span id="stat-vertices">&mdash;</span></div>
+        <div class="stat-row"><span>Triangle:</span><span id="stat-triangles">&mdash;</span></div>
+        <div class="stat-row"><span>Max disp:</span><span id="stat-max-disp">&mdash;</span></div>
+        <div class="stat-row"><span>Bahaya:</span><span id="stat-bahaya">&mdash;</span></div>
+        <div class="stat-row"><span>Data:</span><span id="stat-source">&mdash;</span></div>
+      </div>
+
+      <div id="error-container"></div>
+    </aside>
+
+    <main>
+      <div id="plot"></div>
+      <div id="loading" class="hidden">
+        <div class="spinner"></div>
+        <div id="status">Memuat data...</div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    // ============================================================
+    // KONFIGURASI AUTO-LOAD
+    // Ganti path ini jika nama file berbeda di repo Anda
+    // ============================================================
+    const AUTO_LOAD_PATHS = {
+      dxf: 'data/topografi.dxf',
+      csv: 'data/monitoring.csv',
+    };
+
+    // ============================================================
+    // STATE
+    // ============================================================
+    const state = {
+      mesh: null, monitoring: null,
+      rawPoints: null,  // disimpan agar bisa re-voxel tanpa re-parse
+      opacity: 0.5, voxelSize: 2.0,
+      showTopo: true, colorByElev: true,
+      scaleH: 100, scaleV: 200,
+      showH: true, showV: true, showLabels: false,
+      dataSource: 'none',  // 'auto' | 'manual' | 'none'
+    };
+    let dxfFile = null, csvFile = null;
+
+    const COLUMN_ALIASES = {
+      id:  ['ID', 'ID_POINT', 'POINT_ID', 'NAME', 'NAMA'],
+      e0:  ['E_AWAL', 'EASTING_AWAL', 'E0', 'X_AWAL'],
+      n0:  ['N_AWAL', 'NORTHING_AWAL', 'N0', 'Y_AWAL'],
+      z0:  ['EL_AWAL', 'ELEV_AWAL', 'Z_AWAL', 'ELEVASI_AWAL'],
+      e1:  ['E_AKHIR', 'EASTING_AKHIR', 'E1', 'X_AKHIR'],
+      n1:  ['N_AKHIR', 'NORTHING_AKHIR', 'N1', 'Y_AKHIR'],
+      z1:  ['EL_AKHIR', 'ELEV_AKHIR', 'Z_AKHIR', 'ELEVASI_AKHIR'],
+    };
+    const THRESHOLDS = [
+      { max: 0.005, name: 'Aman',    color: '#2ecc71' },
+      { max: 0.015, name: 'Waspada', color: '#f1c40f' },
+      { max: Infinity, name: 'Bahaya', color: '#e74c3c' },
+    ];
+
+    // ============================================================
+    // DXF PARSING
+    // ============================================================
+    function parseDxfVertices(dxfText) {
+      const parser = new window.DxfParser();
+      const dxf = parser.parseSync(dxfText);
+      if (!dxf || !dxf.entities || !dxf.entities.length) {
+        throw new Error('DXF tidak mengandung entity yang dapat dibaca');
+      }
+      const points = [];
+      for (const entity of dxf.entities) {
+        const t = entity.type;
+        if (t === 'LINE') {
+          for (const v of entity.vertices) points.push([v.x, v.y, v.z || 0]);
+        } else if (t === 'LWPOLYLINE') {
+          const elev = entity.elevation || 0;
+          for (const v of entity.vertices) points.push([v.x, v.y, v.z != null ? v.z : elev]);
+        } else if (t === 'POLYLINE') {
+          if (!entity.vertices) continue;
+          for (const v of entity.vertices) points.push([v.x, v.y, v.z || 0]);
+        } else if (t === 'POINT') {
+          points.push([entity.position.x, entity.position.y, entity.position.z || 0]);
+        } else if (t === '3DFACE') {
+          for (const v of entity.vertices || []) points.push([v.x, v.y, v.z || 0]);
+        }
+      }
+      if (points.length === 0) {
+        throw new Error('Tidak ada vertex yang dapat diekstrak. Pastikan DXF berisi LINE/LWPOLYLINE/POLYLINE.');
+      }
+      return points;
+    }
+
+    function voxelDownsample(points, voxelSize) {
+      const grid = new Map();
+      for (const p of points) {
+        const key = Math.round(p[0] / voxelSize) + ',' + Math.round(p[1] / voxelSize);
+        const cur = grid.get(key);
+        if (!cur) grid.set(key, { sx: p[0], sy: p[1], sz: p[2], n: 1 });
+        else { cur.sx += p[0]; cur.sy += p[1]; cur.sz += p[2]; cur.n += 1; }
+      }
+      const out = new Array(grid.size);
+      let i = 0;
+      for (const c of grid.values()) {
+        out[i++] = [c.sx / c.n, c.sy / c.n, c.sz / c.n];
+      }
+      return out;
+    }
+
+    function triangulate(points, maxSlopeDeg, edgeMultiplier) {
+      maxSlopeDeg = maxSlopeDeg || 75;
+      edgeMultiplier = edgeMultiplier || 3;
+
+      const coords = new Float64Array(points.length * 2);
+      for (let i = 0; i < points.length; i++) {
+        coords[i * 2] = points[i][0];
+        coords[i * 2 + 1] = points[i][1];
+      }
+      const delaunay = new window.Delaunator(coords);
+      const triangles = delaunay.triangles;
+      const nTri = triangles.length / 3;
+
+      const edgeLengths = new Float64Array(nTri);
+      const slopes = new Float64Array(nTri);
+      const areas = new Float64Array(nTri);
+
+      for (let i = 0; i < nTri; i++) {
+        const a = triangles[i * 3], b = triangles[i * 3 + 1], c = triangles[i * 3 + 2];
+        const ax = points[a][0], ay = points[a][1], az = points[a][2];
+        const bx = points[b][0], by = points[b][1], bz = points[b][2];
+        const cx = points[c][0], cy = points[c][1], cz = points[c][2];
+
+        const e0 = Math.hypot(bx - ax, by - ay);
+        const e1 = Math.hypot(cx - bx, cy - by);
+        const e2 = Math.hypot(ax - cx, ay - cy);
+        edgeLengths[i] = Math.max(e0, e1, e2);
+
+        const ux = bx - ax, uy = by - ay, uz = bz - az;
+        const vx = cx - ax, vy = cy - ay, vz = cz - az;
+        const nx = uy * vz - uz * vy;
+        const ny = uz * vx - ux * vz;
+        const nz = ux * vy - uy * vx;
+        const norm = Math.hypot(nx, ny, nz);
+        const cosTheta = norm > 0 ? Math.abs(nz) / norm : 0;
+        slopes[i] = Math.acos(Math.min(1, Math.max(-1, cosTheta))) * 180 / Math.PI;
+
+        areas[i] = 0.5 * Math.abs((bx - ax) * (cy - ay) - (cx - ax) * (by - ay));
+      }
+
+      const sortedEdges = Array.from(edgeLengths).sort((a, b) => a - b);
+      const median = sortedEdges[Math.floor(sortedEdges.length / 2)];
+      const maxEdge = median * edgeMultiplier;
+
+      const validI = [], validJ = [], validK = [];
+      for (let i = 0; i < nTri; i++) {
+        if (edgeLengths[i] <= maxEdge && slopes[i] <= maxSlopeDeg && areas[i] > 0.001) {
+          validI.push(triangles[i * 3]);
+          validJ.push(triangles[i * 3 + 1]);
+          validK.push(triangles[i * 3 + 2]);
+        }
+      }
+      if (validI.length === 0) {
+        throw new Error('Tidak ada triangle valid. Coba naikkan voxel size.');
+      }
+
+      const x = new Array(points.length), y = new Array(points.length), z = new Array(points.length);
+      for (let i = 0; i < points.length; i++) {
+        x[i] = points[i][0]; y[i] = points[i][1]; z[i] = points[i][2];
+      }
+      return {
+        x, y, z, i: validI, j: validJ, k: validK,
+        stats: { validTriangles: validI.length, vertexCount: points.length },
+      };
+    }
+
+    // ============================================================
+    // CSV PARSING
+    // ============================================================
+    function parseMonitoringCsv(text) {
+      const results = window.Papa.parse(text, {
+        header: true, dynamicTyping: true, skipEmptyLines: true,
+      });
+      const headers = results.meta.fields;
+      const upper = headers.map(h => String(h).trim().toUpperCase());
+      const findCol = (aliases) => {
+        for (const a of aliases) {
+          const idx = upper.indexOf(a);
+          if (idx !== -1) return headers[idx];
+        }
+        throw new Error(`Kolom tidak ditemukan: ${aliases.join(', ')}`);
+      };
+      const cols = {};
+      for (const k in COLUMN_ALIASES) cols[k] = findCol(COLUMN_ALIASES[k]);
+
+      const classify = (d) => {
+        for (const t of THRESHOLDS) if (d <= t.max) return t;
+        return THRESHOLDS[THRESHOLDS.length - 1];
+      };
+
+      const points = [];
+      for (const row of results.data) {
+        const e0 = Number(row[cols.e0]), n0 = Number(row[cols.n0]), z0 = Number(row[cols.z0]);
+        const e1 = Number(row[cols.e1]), n1 = Number(row[cols.n1]), z1 = Number(row[cols.z1]);
+        if ([e0, n0, z0, e1, n1, z1].some(v => !Number.isFinite(v))) continue;
+        const dE = e1 - e0, dN = n1 - n0, dZ = z1 - z0;
+        const disp2D = Math.hypot(dE, dN);
+        const dispTotal = Math.hypot(dE, dN, dZ);
+        const azimuth = (Math.atan2(dE, dN) * 180 / Math.PI + 360) % 360;
+        points.push({
+          id: String(row[cols.id]),
+          e0, n0, z0, e1, n1, z1,
+          dE, dN, dZ, disp2D, dispTotal, azimuth,
+          category: classify(dispTotal),
+        });
+      }
+      if (points.length === 0) throw new Error('Tidak ada baris valid di CSV');
+      return points;
+    }
+
+    // ============================================================
+    // FIGURE BUILDER
+    // ============================================================
+    function buildFigure(s) {
+      const traces = [];
+
+      if (s.showTopo && s.mesh) {
+        traces.push({
+          type: 'mesh3d',
+          x: s.mesh.x, y: s.mesh.y, z: s.mesh.z,
+          i: s.mesh.i, j: s.mesh.j, k: s.mesh.k,
+          opacity: s.opacity,
+          color: s.colorByElev ? undefined : '#bdbdbd',
+          intensity: s.colorByElev ? s.mesh.z : undefined,
+          colorscale: s.colorByElev ? 'Earth' : undefined,
+          showscale: false, flatshading: true, name: 'Topografi',
+          hovertemplate: 'E: %{x:.1f}<br>N: %{y:.1f}<br>El: %{z:.1f}<extra></extra>',
+          lighting: { ambient: 0.65, diffuse: 0.75, specular: 0.15, roughness: 0.85 },
+          lightposition: { x: 100, y: 200, z: 200 },
+        });
+      }
+
+      if (s.monitoring) {
+        traces.push({
+          type: 'scatter3d',
+          mode: s.showLabels ? 'markers+text' : 'markers',
+          x: s.monitoring.map(p => p.e0),
+          y: s.monitoring.map(p => p.n0),
+          z: s.monitoring.map(p => p.z0),
+          text: s.monitoring.map(p => p.id),
+          textposition: 'top center',
+          textfont: { size: 9, color: '#1d1d1f' },
+          marker: {
+            size: 4,
+            color: s.monitoring.map(p => p.category.color),
+            symbol: 'circle',
+            line: { width: 0.5, color: '#1d1d1f' },
+          },
+          name: 'Titik Monitoring',
+          hovertemplate:
+            '<b>%{text}</b><br>E: %{x:.2f}<br>N: %{y:.2f}<br>El: %{z:.2f}<br>' +
+            'Total: %{customdata[0]:.1f} mm<br>Horizontal: %{customdata[1]:.1f} mm<br>' +
+            'Vertikal: %{customdata[2]:.1f} mm<br>Arah: %{customdata[3]:.0f}°<br>' +
+            '%{customdata[4]}<extra></extra>',
+          customdata: s.monitoring.map(p => [
+            p.dispTotal * 1000, p.disp2D * 1000, p.dZ * 1000,
+            p.azimuth, p.category.name,
+          ]),
+        });
+
+        if (s.showH) {
+          const byCategory = {};
+          for (const p of s.monitoring) {
+            const k = p.category.name;
+            if (!byCategory[k]) byCategory[k] = [];
+            byCategory[k].push(p);
+          }
+          for (const catName in byCategory) {
+            const pts = byCategory[catName];
+            const color = pts[0].category.color;
+            const x = [], y = [], z = [];
+            for (const p of pts) {
+              x.push(p.e0, p.e0 + p.dE * s.scaleH, null);
+              y.push(p.n0, p.n0 + p.dN * s.scaleH, null);
+              z.push(p.z0, p.z0, null);
+            }
+            traces.push({
+              type: 'scatter3d', mode: 'lines', x, y, z,
+              line: { color, width: 4 },
+              name: 'H-' + catName, hoverinfo: 'skip', showlegend: false,
+            });
+          }
+          const coneX = [], coneY = [], coneZ = [], coneU = [], coneV = [], coneW = [];
+          for (const p of s.monitoring) {
+            coneX.push(p.e0 + p.dE * s.scaleH);
+            coneY.push(p.n0 + p.dN * s.scaleH);
+            coneZ.push(p.z0);
+            coneU.push(p.dE); coneV.push(p.dN); coneW.push(0);
+          }
+          traces.push({
+            type: 'cone', x: coneX, y: coneY, z: coneZ, u: coneU, v: coneV, w: coneW,
+            sizemode: 'absolute', sizeref: 4, anchor: 'tip',
+            showscale: false, colorscale: [[0, '#666'], [1, '#666']],
+            name: 'Cone H', hoverinfo: 'skip', showlegend: false,
+          });
+        }
+
+        if (s.showV) {
+          const COLOR_DOWN = '#1f5f8b', COLOR_UP = '#3498db';
+          for (const dir of ['down', 'up']) {
+            const x = [], y = [], z = [];
+            const filtered = s.monitoring.filter(p => dir === 'down' ? p.dZ < 0 : p.dZ > 0);
+            for (const p of filtered) {
+              x.push(p.e0, p.e0, null);
+              y.push(p.n0, p.n0, null);
+              z.push(p.z0, p.z0 + p.dZ * s.scaleV, null);
+            }
+            traces.push({
+              type: 'scatter3d', mode: 'lines', x, y, z,
+              line: { color: dir === 'down' ? COLOR_DOWN : COLOR_UP, width: 3 },
+              name: 'V-' + dir, hoverinfo: 'skip', showlegend: false,
+            });
+          }
+          const coneX = [], coneY = [], coneZ = [], coneU = [], coneV = [], coneW = [];
+          for (const p of s.monitoring) {
+            coneX.push(p.e0); coneY.push(p.n0); coneZ.push(p.z0 + p.dZ * s.scaleV);
+            coneU.push(0); coneV.push(0); coneW.push(p.dZ);
+          }
+          traces.push({
+            type: 'cone', x: coneX, y: coneY, z: coneZ, u: coneU, v: coneV, w: coneW,
+            sizemode: 'absolute', sizeref: 3, anchor: 'tip',
+            showscale: false, colorscale: [[0, COLOR_DOWN], [1, COLOR_UP]],
+            name: 'Cone V', hoverinfo: 'skip', showlegend: false,
+          });
+        }
+      }
+
+      const allX = [], allY = [], allZ = [];
+      if (s.mesh) { allX.push(...s.mesh.x); allY.push(...s.mesh.y); allZ.push(...s.mesh.z); }
+      if (s.monitoring) {
+        for (const p of s.monitoring) { allX.push(p.e0); allY.push(p.n0); allZ.push(p.z0); }
+      }
+      if (allX.length === 0) {
+        return { traces, layout: {}, config: { responsive: true } };
+      }
+      const rx = Math.max(...allX) - Math.min(...allX);
+      const ry = Math.max(...allY) - Math.min(...allY);
+      const rz = Math.max(...allZ) - Math.min(...allZ);
+      const aspectZ = Math.min(0.6, (rz / Math.max(rx, ry)) * 1.5);
+
+      return {
+        traces,
+        layout: {
+          scene: {
+            xaxis: { title: 'Easting (m)' },
+            yaxis: { title: 'Northing (m)' },
+            zaxis: { title: 'Elevasi (m)' },
+            aspectmode: 'manual',
+            aspectratio: { x: 1, y: ry / rx, z: aspectZ },
+            camera: { eye: { x: 1.5, y: 1.5, z: 0.9 } },
+            bgcolor: '#fafafa',
+          },
+          margin: { l: 0, r: 0, b: 0, t: 0 },
+          showlegend: false, paper_bgcolor: '#fff',
+        },
+        config: {
+          displayModeBar: true, displaylogo: false, responsive: true,
+        },
+      };
+    }
+
+    // ============================================================
+    // UI LOGIC
+    // ============================================================
+    const PLOT_DIV = document.getElementById('plot');
+    const LOADING = document.getElementById('loading');
+    const STATUS = document.getElementById('status');
+    const ERROR_CONTAINER = document.getElementById('error-container');
+    const MODE_INDICATOR = document.getElementById('mode-indicator');
+    const UPLOAD_SECTION = document.getElementById('upload-section');
+    const UPLOAD_TOGGLE = document.getElementById('upload-section-toggle');
+    const REPROCESS_BTN = document.getElementById('reprocess-btn');
+
+    function setStatus(msg) { STATUS.textContent = msg; }
+    function showError(msg) {
+      ERROR_CONTAINER.innerHTML = `<div class="error">${msg}</div>`;
+      LOADING.classList.add('hidden');
+    }
+    function clearError() { ERROR_CONTAINER.innerHTML = ''; }
+
+    function updateStats() {
+      if (state.mesh) {
+        document.getElementById('stat-vertices').textContent =
+          state.mesh.stats.vertexCount.toLocaleString();
+        document.getElementById('stat-triangles').textContent =
+          state.mesh.stats.validTriangles.toLocaleString();
+      }
+      if (state.monitoring) {
+        document.getElementById('stat-points').textContent = state.monitoring.length;
+        const maxDisp = Math.max(...state.monitoring.map(p => p.dispTotal));
+        document.getElementById('stat-max-disp').textContent = (maxDisp * 1000).toFixed(1) + ' mm';
+        document.getElementById('stat-bahaya').textContent =
+          state.monitoring.filter(p => p.category.name === 'Bahaya').length;
+      }
+      document.getElementById('stat-source').textContent =
+        state.dataSource === 'auto' ? 'Auto (repo)' :
+        state.dataSource === 'manual' ? 'Upload' : '—';
+    }
+
+    let renderPending = false;
+    function rerender() {
+      if (!state.mesh && !state.monitoring) return;
+      if (renderPending) return;
+      renderPending = true;
+      requestAnimationFrame(() => {
+        renderPending = false;
+        const fig = buildFigure(state);
+        Plotly.react(PLOT_DIV, fig.traces, fig.layout, fig.config);
+      });
+    }
+
+    function readFileAsText(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(new Error('Gagal membaca file'));
+        reader.readAsText(file);
+      });
+    }
+
+    // Coba load dari repo (untuk mode GitHub Pages)
+    async function tryAutoLoad() {
+      LOADING.classList.remove('hidden');
+      setStatus('Mencari data di repo...');
+      try {
+        const [csvResp, dxfResp] = await Promise.all([
+          fetch(AUTO_LOAD_PATHS.csv).catch(() => null),
+          fetch(AUTO_LOAD_PATHS.dxf).catch(() => null),
+        ]);
+
+        const csvOk = csvResp && csvResp.ok;
+        const dxfOk = dxfResp && dxfResp.ok;
+
+        if (!csvOk && !dxfOk) {
+          // Tidak ada file di repo, fallback ke mode manual
+          setModeManual();
+          LOADING.classList.add('hidden');
+          return false;
+        }
+
+        if (csvOk) {
+          setStatus('Parsing CSV dari repo...');
+          const csvText = await csvResp.text();
+          state.monitoring = parseMonitoringCsv(csvText);
+        }
+
+        if (dxfOk) {
+          const dxfText = await dxfResp.text();
+          const sizeMB = (dxfText.length / 1024 / 1024).toFixed(1);
+          setStatus('DXF dimuat (' + sizeMB + ' MB), parsing...');
+          await new Promise(r => setTimeout(r, 30));
+          state.rawPoints = parseDxfVertices(dxfText);
+          setStatus('Downsampling ' + state.rawPoints.length.toLocaleString() + ' vertex...');
+          await new Promise(r => setTimeout(r, 30));
+          const downsampled = voxelDownsample(state.rawPoints, state.voxelSize);
+          setStatus('Triangulasi...');
+          await new Promise(r => setTimeout(r, 30));
+          state.mesh = triangulate(downsampled, 75, 3);
+          REPROCESS_BTN.style.display = 'block';
+        }
+
+        state.dataSource = 'auto';
+        MODE_INDICATOR.textContent = 'Auto';
+        MODE_INDICATOR.className = 'auto';
+        // Collapse upload section in auto mode
+        UPLOAD_SECTION.classList.add('section-collapsed');
+        UPLOAD_TOGGLE.classList.add('collapsed');
+
+        updateStats();
+        rerender();
+        LOADING.classList.add('hidden');
+        return true;
+      } catch (e) {
+        console.warn('Auto-load failed:', e.message);
+        setModeManual();
+        LOADING.classList.add('hidden');
+        return false;
+      }
+    }
+
+    function setModeManual() {
+      state.dataSource = 'none';
+      MODE_INDICATOR.textContent = 'Manual';
+      MODE_INDICATOR.className = '';
+    }
+
+    async function loadFilesManual() {
+      clearError();
+      LOADING.classList.remove('hidden');
+      try {
+        if (csvFile) {
+          setStatus('Membaca CSV...');
+          await new Promise(r => setTimeout(r, 30));
+          const csvText = await readFileAsText(csvFile);
+          state.monitoring = parseMonitoringCsv(csvText);
+        }
+        if (dxfFile) {
+          setStatus('Membaca DXF (' + (dxfFile.size / 1024 / 1024).toFixed(1) + ' MB)...');
+          await new Promise(r => setTimeout(r, 30));
+          const dxfText = await readFileAsText(dxfFile);
+          setStatus('Parsing DXF...');
+          await new Promise(r => setTimeout(r, 30));
+          state.rawPoints = parseDxfVertices(dxfText);
+          setStatus('Downsampling ' + state.rawPoints.length.toLocaleString() + ' vertex...');
+          await new Promise(r => setTimeout(r, 30));
+          const downsampled = voxelDownsample(state.rawPoints, state.voxelSize);
+          setStatus('Triangulasi...');
+          await new Promise(r => setTimeout(r, 30));
+          state.mesh = triangulate(downsampled, 75, 3);
+          REPROCESS_BTN.style.display = 'block';
+        }
+        state.dataSource = 'manual';
+        MODE_INDICATOR.textContent = 'Manual';
+        MODE_INDICATOR.className = '';
+        updateStats();
+        rerender();
+        LOADING.classList.add('hidden');
+      } catch (e) {
+        console.error(e);
+        showError('Error: ' + e.message);
+      }
+    }
+
+    async function reprocessMesh() {
+      if (!state.rawPoints) return;
+      LOADING.classList.remove('hidden');
+      setStatus('Re-processing dengan voxel ' + state.voxelSize + ' m...');
+      try {
+        await new Promise(r => setTimeout(r, 30));
+        const downsampled = voxelDownsample(state.rawPoints, state.voxelSize);
+        setStatus('Triangulasi ulang...');
+        await new Promise(r => setTimeout(r, 30));
+        state.mesh = triangulate(downsampled, 75, 3);
+        updateStats();
+        rerender();
+        LOADING.classList.add('hidden');
+      } catch (e) {
+        showError('Error: ' + e.message);
+      }
+    }
+
+    function checkReady() {
+      document.getElementById('load-btn').disabled = !(dxfFile || csvFile);
+    }
+
+    // Event bindings
+    document.getElementById('dxf-input').addEventListener('change', (e) => {
+      dxfFile = e.target.files[0] || null;
+      checkReady();
+    });
+    document.getElementById('csv-input').addEventListener('change', (e) => {
+      csvFile = e.target.files[0] || null;
+      checkReady();
+    });
+    document.getElementById('load-btn').addEventListener('click', loadFilesManual);
+    REPROCESS_BTN.addEventListener('click', reprocessMesh);
+
+    UPLOAD_TOGGLE.addEventListener('click', () => {
+      UPLOAD_SECTION.classList.toggle('section-collapsed');
+      UPLOAD_TOGGLE.classList.toggle('collapsed');
+    });
+
+    function wireRange(id, valId, key, suffix, transform) {
+      const slider = document.getElementById(id);
+      const val = document.getElementById(valId);
+      slider.addEventListener('input', (e) => {
+        const v = Number(e.target.value);
+        state[key] = transform ? transform(v) : v;
+        val.textContent = v + suffix;
+        if (id !== 'voxel') rerender();
+      });
+    }
+    wireRange('opacity', 'opacity-val', 'opacity', '%', v => v / 100);
+    wireRange('voxel', 'voxel-val', 'voxelSize', ' m');
+    wireRange('scale-h', 'scale-h-val', 'scaleH', '×');
+    wireRange('scale-v', 'scale-v-val', 'scaleV', '×');
+
+    function wireToggle(id, key) {
+      document.getElementById(id).addEventListener('change', (e) => {
+        state[key] = e.target.checked;
+        rerender();
+      });
+    }
+    wireToggle('show-topo', 'showTopo');
+    wireToggle('color-by-elev', 'colorByElev');
+    wireToggle('show-h', 'showH');
+    wireToggle('show-v', 'showV');
+    wireToggle('show-labels', 'showLabels');
+
+    // Auto-start
+    tryAutoLoad();
+  </script>
+</body>
+</html>
