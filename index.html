@@ -144,6 +144,10 @@ License: MIT
         <input type="range" id="opacity" min="0" max="100" value="50" />
       </div>
       <div class="control-group">
+        <label>Z Exaggeration: <span class="value" id="zexag-val">4×</span></label>
+        <input type="range" id="zexag" min="1" max="20" step="0.5" value="4" />
+      </div>
+      <div class="control-group">
         <label>Voxel size: <span class="value" id="voxel-val">2 m</span></label>
         <input type="range" id="voxel" min="1" max="10" step="0.5" value="2" />
       </div>
@@ -245,6 +249,7 @@ License: MIT
       showTopo: true, colorByElev: true,
       scaleH: 100, scaleV: 200,
       showH: true, showV: true, showLabels: false,
+      zExag: 4.0,   // vertical exaggeration untuk topografi
       dataSource: 'none',  // 'auto' | 'manual' | 'none'
     };
     let dxfFile = null, csvFile = null;
@@ -472,6 +477,24 @@ License: MIT
           ]),
         });
 
+        // ---- Helper: buat kepala panah 2D dari dua garis miring ----
+        // Tip = ujung panah (ex, ey), arah shaft = (dx, dy) normalized
+        // headLen = panjang kepala panah dalam unit world, halfAngle = rad
+        function arrowHeadLines(ex, ey, ez, dx, dy, headLen, halfAngle) {
+          // Arah berlawanan (balik dari tip ke tail)
+          const len = Math.hypot(dx, dy);
+          if (len < 1e-12) return [];
+          const nx = -dx / len, ny = -dy / len;
+          const cos = Math.cos(halfAngle), sin = Math.sin(halfAngle);
+          // Dua sayap kepala panah
+          const w1x = nx * cos - ny * sin, w1y = nx * sin + ny * cos;
+          const w2x = nx * cos + ny * sin, w2y = -nx * sin + ny * cos;
+          return [
+            ex, ey, ez, ex + w1x * headLen, ey + w1y * headLen, ez, null,
+            ex, ey, ez, ex + w2x * headLen, ey + w2y * headLen, ez, null,
+          ];
+        }
+
         if (s.showH) {
           const byCategory = {};
           for (const p of s.monitoring) {
@@ -484,29 +507,29 @@ License: MIT
             const color = pts[0].category.color;
             const x = [], y = [], z = [];
             for (const p of pts) {
-              x.push(p.e0, p.e0 + p.dE * s.scaleH, null);
-              y.push(p.n0, p.n0 + p.dN * s.scaleH, null);
-              z.push(p.z0, p.z0, null);
+              // Shaft
+              const ex = p.e0 + p.dE * s.scaleH;
+              const ey = p.n0 + p.dN * s.scaleH;
+              const ez = p.z0;
+              x.push(p.e0, ex, null);
+              y.push(p.n0, ey, null);
+              z.push(ez, ez, null);
+
+              // Kepala panah — panjang kepala = 20% panjang shaft, tapi minimal 0.5 m
+              const shaftLen = Math.hypot(p.dE * s.scaleH, p.dN * s.scaleH);
+              const headLen = Math.max(0.5, shaftLen * 0.22);
+              const pts6 = arrowHeadLines(ex, ey, ez, p.dE * s.scaleH, p.dN * s.scaleH, headLen, 0.42);
+              for (let i = 0; i < pts6.length; i += 3) {
+                if (pts6[i] === null) { x.push(null); y.push(null); z.push(null); }
+                else { x.push(pts6[i]); y.push(pts6[i+1]); z.push(pts6[i+2]); }
+              }
             }
             traces.push({
               type: 'scatter3d', mode: 'lines', x, y, z,
-              line: { color, width: 4 },
+              line: { color, width: 3 },
               name: 'H-' + catName, hoverinfo: 'skip', showlegend: false,
             });
           }
-          const coneX = [], coneY = [], coneZ = [], coneU = [], coneV = [], coneW = [];
-          for (const p of s.monitoring) {
-            coneX.push(p.e0 + p.dE * s.scaleH);
-            coneY.push(p.n0 + p.dN * s.scaleH);
-            coneZ.push(p.z0);
-            coneU.push(p.dE); coneV.push(p.dN); coneW.push(0);
-          }
-          traces.push({
-            type: 'cone', x: coneX, y: coneY, z: coneZ, u: coneU, v: coneV, w: coneW,
-            sizemode: 'absolute', sizeref: 4, anchor: 'tip',
-            showscale: false, colorscale: [[0, '#666'], [1, '#666']],
-            name: 'Cone H', hoverinfo: 'skip', showlegend: false,
-          });
         }
 
         if (s.showV) {
@@ -515,9 +538,24 @@ License: MIT
             const x = [], y = [], z = [];
             const filtered = s.monitoring.filter(p => dir === 'down' ? p.dZ < 0 : p.dZ > 0);
             for (const p of filtered) {
+              const ez = p.z0 + p.dZ * s.scaleV;
+              // Shaft vertikal
               x.push(p.e0, p.e0, null);
               y.push(p.n0, p.n0, null);
-              z.push(p.z0, p.z0 + p.dZ * s.scaleV, null);
+              z.push(p.z0, ez, null);
+
+              // Kepala panah vertikal — dua sayap di bidang XZ dan YZ
+              const shaftLen = Math.abs(p.dZ * s.scaleV);
+              const hLen = Math.max(0.5, shaftLen * 0.22);
+              const sign = p.dZ < 0 ? 1 : -1; // arah berlawanan
+              // Sayap di bidang XZ
+              x.push(p.e0, p.e0 + hLen * 0.7, null, p.e0, p.e0 - hLen * 0.7, null);
+              y.push(p.n0, p.n0, null, p.n0, p.n0, null);
+              z.push(ez, ez + sign * hLen * 0.7, null, ez, ez + sign * hLen * 0.7, null);
+              // Sayap di bidang YZ
+              x.push(p.e0, p.e0, null, p.e0, p.e0, null);
+              y.push(p.n0, p.n0 + hLen * 0.7, null, p.n0, p.n0 - hLen * 0.7, null);
+              z.push(ez, ez + sign * hLen * 0.7, null, ez, ez + sign * hLen * 0.7, null);
             }
             traces.push({
               type: 'scatter3d', mode: 'lines', x, y, z,
@@ -525,17 +563,6 @@ License: MIT
               name: 'V-' + dir, hoverinfo: 'skip', showlegend: false,
             });
           }
-          const coneX = [], coneY = [], coneZ = [], coneU = [], coneV = [], coneW = [];
-          for (const p of s.monitoring) {
-            coneX.push(p.e0); coneY.push(p.n0); coneZ.push(p.z0 + p.dZ * s.scaleV);
-            coneU.push(0); coneV.push(0); coneW.push(p.dZ);
-          }
-          traces.push({
-            type: 'cone', x: coneX, y: coneY, z: coneZ, u: coneU, v: coneV, w: coneW,
-            sizemode: 'absolute', sizeref: 3, anchor: 'tip',
-            showscale: false, colorscale: [[0, COLOR_DOWN], [1, COLOR_UP]],
-            name: 'Cone V', hoverinfo: 'skip', showlegend: false,
-          });
         }
       }
 
@@ -550,7 +577,9 @@ License: MIT
       const rx = Math.max(...allX) - Math.min(...allX);
       const ry = Math.max(...allY) - Math.min(...allY);
       const rz = Math.max(...allZ) - Math.min(...allZ);
-      const aspectZ = Math.min(0.6, (rz / Math.max(rx, ry)) * 1.5);
+      // Exaggerate Z so topografi terlihat 3D — clamp antara 0.15 dan 0.7
+      // Faktor 4 = vertical exaggeration agar relief terlihat meski rz << rx/ry
+      const aspectZ = Math.min(0.7, Math.max(0.15, (rz / Math.max(rx, ry)) * s.zExag));
 
       return {
         traces,
@@ -785,6 +814,7 @@ License: MIT
       });
     }
     wireRange('opacity', 'opacity-val', 'opacity', '%', v => v / 100);
+    wireRange('zexag', 'zexag-val', 'zExag', '×');
     wireRange('voxel', 'voxel-val', 'voxelSize', ' m');
     wireRange('scale-h', 'scale-h-val', 'scaleH', '×');
     wireRange('scale-v', 'scale-v-val', 'scaleV', '×');
