@@ -574,20 +574,38 @@ License: MIT
       if (allX.length === 0) {
         return { traces, layout: {}, config: { responsive: true } };
       }
-      const rx = Math.max(...allX) - Math.min(...allX);
-      const ry = Math.max(...allY) - Math.min(...allY);
-      const rz = Math.max(...allZ) - Math.min(...allZ);
+
+      const minX = Math.min(...allX), maxX = Math.max(...allX);
+      const minY = Math.min(...allY), maxY = Math.max(...allY);
+      const minZ = Math.min(...allZ), maxZ = Math.max(...allZ);
+      const rx = maxX - minX;
+      const ry = maxY - minY;
+      const rz = maxZ - minZ;
+
+      // Padding 5% di setiap sisi agar data tidak kepotong di tepi
+      const padX = rx * 0.05, padY = ry * 0.05, padZ = rz * 0.1;
+
       // Exaggerate Z so topografi terlihat 3D — clamp antara 0.15 dan 0.7
-      // Faktor 4 = vertical exaggeration agar relief terlihat meski rz << rx/ry
+      // KRITIS: aspectratio dihitung dari range data aktual (rx, ry, rz),
+      // bukan dari nilai absolut koordinat UTM — ini yang mencegah mesh tampak flat
       const aspectZ = Math.min(0.7, Math.max(0.15, (rz / Math.max(rx, ry)) * s.zExag));
 
       return {
         traces,
         layout: {
           scene: {
-            xaxis: { title: 'Easting (m)' },
-            yaxis: { title: 'Northing (m)' },
-            zaxis: { title: 'Elevasi (m)' },
+            xaxis: {
+              title: 'Easting (m)',
+              range: [minX - padX, maxX + padX],  // paksa axis dari data range, bukan dari 0
+            },
+            yaxis: {
+              title: 'Northing (m)',
+              range: [minY - padY, maxY + padY],
+            },
+            zaxis: {
+              title: 'Elevasi (m)',
+              range: [minZ - padZ, maxZ + padZ],
+            },
             aspectmode: 'manual',
             aspectratio: { x: 1, y: ry / rx, z: aspectZ },
             camera: { eye: { x: 1.5, y: 1.5, z: 0.9 } },
