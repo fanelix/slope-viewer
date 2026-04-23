@@ -149,7 +149,15 @@ License: MIT
       </div>
       <div class="control-group">
         <label>Voxel size: <span class="value" id="voxel-val">2 m</span></label>
-        <input type="range" id="voxel" min="1" max="10" step="0.5" value="2" />
+        <input type="range" id="voxel" min="0.5" max="10" step="0.5" value="2" />
+      </div>
+      <div class="control-group">
+        <label>Max slope filter: <span class="value" id="maxslope-val">89°</span></label>
+        <input type="range" id="maxslope" min="45" max="89" step="1" value="89" />
+      </div>
+      <div class="control-group">
+        <label>Edge filter (× median): <span class="value" id="edgemult-val">4.0×</span></label>
+        <input type="range" id="edgemult" min="1.5" max="8" step="0.1" value="4" />
       </div>
       <div class="toggle">
         <span>Tampilkan topografi</span>
@@ -159,8 +167,16 @@ License: MIT
         <span>Color by elevation</span>
         <input type="checkbox" id="color-by-elev" checked />
       </div>
+      <div class="toggle">
+        <span>Faceted (tidak smooth)</span>
+        <input type="checkbox" id="faceted" checked />
+      </div>
+      <div class="toggle">
+        <span>Preserve break-lines</span>
+        <input type="checkbox" id="preserve-edges" checked />
+      </div>
       <button id="reprocess-btn" class="secondary" style="margin-top:8px; display:none;">
-        Proses Ulang dengan Voxel Baru
+        Proses Ulang dengan Parameter Baru
       </button>
 
       <h2>Vektor Pergerakan</h2>
@@ -250,6 +266,10 @@ License: MIT
       scaleH: 100, scaleV: 200,
       showH: true, showV: true, showLabels: false,
       zExag: 4.0,   // vertical exaggeration untuk topografi
+      maxSlopeDeg: 89,       // filter slope segitiga (naik dari 75 → 89 agar dinding vertikal tidak hilang)
+      edgeMultiplier: 4.0,   // filter panjang edge (naik dari 3 → 4 agar lubang berkurang)
+      faceted: true,         // render faceted (bukan smooth interpolation)
+      preserveEdges: true,   // voxel downsample preserve break-lines
       dataSource: 'none',  // 'auto' | 'manual' | 'none'
     };
     let dxfFile = null, csvFile = null;
@@ -301,25 +321,60 @@ License: MIT
       return points;
     }
 
-    function voxelDownsample(points, voxelSize) {
+    // Voxel downsampling dengan opsi preserve break-lines.
+    // - Mode default (average): ambil rata-rata x,y,z per voxel → smooth tapi hilangkan detail
+    // - Mode preserveEdges: per voxel simpan titik dengan Z=min DAN Z=max (jika range Z > threshold),
+    //   sehingga break-line seperti crest/toe bench tetap ter-representasikan.
+    function voxelDownsample(points, voxelSize, preserveEdges) {
       const grid = new Map();
       for (const p of points) {
         const key = Math.round(p[0] / voxelSize) + ',' + Math.round(p[1] / voxelSize);
-        const cur = grid.get(key);
-        if (!cur) grid.set(key, { sx: p[0], sy: p[1], sz: p[2], n: 1 });
-        else { cur.sx += p[0]; cur.sy += p[1]; cur.sz += p[2]; cur.n += 1; }
+        let cur = grid.get(key);
+        if (!cur) {
+          cur = {
+            sx: p[0], sy: p[1], sz: p[2], n: 1,
+            minZ: p[2], maxZ: p[2],
+            minPt: [p[0], p[1], p[2]], maxPt: [p[0], p[1], p[2]],
+            allZ: [p[2]],
+          };
+          grid.set(key, cur);
+        } else {
+          cur.sx += p[0]; cur.sy += p[1]; cur.sz += p[2]; cur.n += 1;
+          if (p[2] < cur.minZ) { cur.minZ = p[2]; cur.minPt = [p[0], p[1], p[2]]; }
+          if (p[2] > cur.maxZ) { cur.maxZ = p[2]; cur.maxPt = [p[0], p[1], p[2]]; }
+          cur.allZ.push(p[2]);
+        }
       }
-      const out = new Array(grid.size);
-      let i = 0;
+
+      const out = [];
+      // Threshold: kalau range Z dalam 1 voxel > 30% voxel size, berarti di sana ada slope curam
+      // atau break-line — simpan kedua titik (min & max). Kalau tidak, cukup 1 titik.
+      const zRangeThreshold = voxelSize * 0.3;
+
       for (const c of grid.values()) {
-        out[i++] = [c.sx / c.n, c.sy / c.n, c.sz / c.n];
+        if (preserveEdges && (c.maxZ - c.minZ) > zRangeThreshold && c.n >= 2) {
+          // Simpan titik paling bawah dan paling atas untuk merepresentasikan break-line
+          out.push(c.minPt);
+          out.push(c.maxPt);
+          // Kalau sample cukup banyak, tambah juga centroid agar mesh tidak terlalu jarang
+          if (c.n >= 5) {
+            out.push([c.sx / c.n, c.sy / c.n, c.sz / c.n]);
+          }
+        } else {
+          // Area flat — gunakan centroid (rata-rata) seperti sebelumnya
+          out.push([c.sx / c.n, c.sy / c.n, c.sz / c.n]);
+        }
       }
       return out;
     }
 
+    // Triangulasi Delaunay 2D (XY) + filter segitiga berdasarkan slope dan edge length.
+    // Filter edge length sekarang menggunakan percentile-based threshold (bukan cuma median)
+    // agar distribusi titik yang tidak uniform (misal rapat di kontur, jarang di antar-kontur)
+    // tidak langsung bikin lubang besar.
     function triangulate(points, maxSlopeDeg, edgeMultiplier) {
-      maxSlopeDeg = maxSlopeDeg || 75;
-      edgeMultiplier = edgeMultiplier || 3;
+      maxSlopeDeg = maxSlopeDeg != null ? maxSlopeDeg : 89;
+      edgeMultiplier = edgeMultiplier != null ? edgeMultiplier : 4;
 
       const coords = new Float64Array(points.length * 2);
       for (let i = 0; i < points.length; i++) {
@@ -357,20 +412,28 @@ License: MIT
         areas[i] = 0.5 * Math.abs((bx - ax) * (cy - ay) - (cx - ax) * (by - ay));
       }
 
+      // Percentile-based edge threshold: lebih robust dari "median × mult"
+      // Ambil P75 (quartile atas) sebagai baseline, bukan P50. Untuk distribusi titik
+      // tidak uniform, P75 lebih merepresentasikan "edge normal" daripada median.
       const sortedEdges = Array.from(edgeLengths).sort((a, b) => a - b);
-      const median = sortedEdges[Math.floor(sortedEdges.length / 2)];
-      const maxEdge = median * edgeMultiplier;
+      const p50 = sortedEdges[Math.floor(sortedEdges.length * 0.5)];
+      const p75 = sortedEdges[Math.floor(sortedEdges.length * 0.75)];
+      // Gunakan P75 sebagai baseline, karena median bisa dipengaruhi oleh cluster rapat
+      const baseline = Math.max(p50, p75 * 0.7);
+      const maxEdge = baseline * edgeMultiplier;
 
       const validI = [], validJ = [], validK = [];
+      const validSlopes = [];  // untuk facecolor per-triangle
       for (let i = 0; i < nTri; i++) {
-        if (edgeLengths[i] <= maxEdge && slopes[i] <= maxSlopeDeg && areas[i] > 0.001) {
+        if (edgeLengths[i] <= maxEdge && slopes[i] <= maxSlopeDeg && areas[i] > 0.01) {
           validI.push(triangles[i * 3]);
           validJ.push(triangles[i * 3 + 1]);
           validK.push(triangles[i * 3 + 2]);
+          validSlopes.push(slopes[i]);
         }
       }
       if (validI.length === 0) {
-        throw new Error('Tidak ada triangle valid. Coba naikkan voxel size.');
+        throw new Error('Tidak ada triangle valid. Coba naikkan voxel size atau longgarkan filter.');
       }
 
       const x = new Array(points.length), y = new Array(points.length), z = new Array(points.length);
@@ -379,7 +442,16 @@ License: MIT
       }
       return {
         x, y, z, i: validI, j: validJ, k: validK,
-        stats: { validTriangles: validI.length, vertexCount: points.length },
+        faceSlopes: validSlopes,
+        stats: {
+          validTriangles: validI.length,
+          vertexCount: points.length,
+          totalTriangles: nTri,
+          filteredOut: nTri - validI.length,
+          medianEdge: p50,
+          p75Edge: p75,
+          maxEdgeUsed: maxEdge,
+        },
       };
     }
 
@@ -434,17 +506,47 @@ License: MIT
       const traces = [];
 
       if (s.showTopo && s.mesh) {
+        // Untuk faceted mode, gunakan intensity per-face (1 nilai per triangle)
+        // dengan intensitymode='cell'. Ini memaksa Plotly untuk tidak interpolasi
+        // warna antar vertex, sehingga setiap facet punya warna solid sesuai
+        // elevasi rata-ratanya.
+        let intensity = undefined;
+        let intensitymode = undefined;
+        if (s.colorByElev) {
+          if (s.faceted) {
+            // Hitung Z rata-rata per triangle
+            const faceZ = new Array(s.mesh.i.length);
+            for (let k = 0; k < s.mesh.i.length; k++) {
+              faceZ[k] = (s.mesh.z[s.mesh.i[k]] + s.mesh.z[s.mesh.j[k]] + s.mesh.z[s.mesh.k[k]]) / 3;
+            }
+            intensity = faceZ;
+            intensitymode = 'cell';
+          } else {
+            intensity = s.mesh.z;
+            intensitymode = 'vertex';
+          }
+        }
+
         traces.push({
           type: 'mesh3d',
           x: s.mesh.x, y: s.mesh.y, z: s.mesh.z,
           i: s.mesh.i, j: s.mesh.j, k: s.mesh.k,
           opacity: s.opacity,
           color: s.colorByElev ? undefined : '#bdbdbd',
-          intensity: s.colorByElev ? s.mesh.z : undefined,
+          intensity: intensity,
+          intensitymode: intensitymode,
           colorscale: s.colorByElev ? 'Earth' : undefined,
-          showscale: false, flatshading: true, name: 'Topografi',
+          showscale: false,
+          flatshading: true,  // wajib untuk tampilan faceted (tanpa normal smoothing)
+          name: 'Topografi',
           hovertemplate: 'E: %{x:.1f}<br>N: %{y:.1f}<br>El: %{z:.1f}<extra></extra>',
-          lighting: { ambient: 0.65, diffuse: 0.75, specular: 0.15, roughness: 0.85 },
+          // Lighting yang lebih kontras untuk menonjolkan tepi facet:
+          // - ambient rendah → bayangan lebih jelas
+          // - diffuse tinggi → perbedaan orientasi terlihat
+          // - roughness rendah → shading lebih tajam per face
+          lighting: s.faceted
+            ? { ambient: 0.45, diffuse: 0.9, specular: 0.2, roughness: 0.5, fresnel: 0.1 }
+            : { ambient: 0.65, diffuse: 0.75, specular: 0.15, roughness: 0.85 },
           lightposition: { x: 100, y: 200, z: 200 },
         });
       }
@@ -713,10 +815,10 @@ License: MIT
           state.rawPoints = parseDxfVertices(dxfText);
           setStatus('Downsampling ' + state.rawPoints.length.toLocaleString() + ' vertex...');
           await new Promise(r => setTimeout(r, 30));
-          const downsampled = voxelDownsample(state.rawPoints, state.voxelSize);
+          const downsampled = voxelDownsample(state.rawPoints, state.voxelSize, state.preserveEdges);
           setStatus('Triangulasi...');
           await new Promise(r => setTimeout(r, 30));
-          state.mesh = triangulate(downsampled, 75, 3);
+          state.mesh = triangulate(downsampled, state.maxSlopeDeg, state.edgeMultiplier);
           REPROCESS_BTN.style.display = 'block';
         }
 
@@ -764,10 +866,10 @@ License: MIT
           state.rawPoints = parseDxfVertices(dxfText);
           setStatus('Downsampling ' + state.rawPoints.length.toLocaleString() + ' vertex...');
           await new Promise(r => setTimeout(r, 30));
-          const downsampled = voxelDownsample(state.rawPoints, state.voxelSize);
+          const downsampled = voxelDownsample(state.rawPoints, state.voxelSize, state.preserveEdges);
           setStatus('Triangulasi...');
           await new Promise(r => setTimeout(r, 30));
-          state.mesh = triangulate(downsampled, 75, 3);
+          state.mesh = triangulate(downsampled, state.maxSlopeDeg, state.edgeMultiplier);
           REPROCESS_BTN.style.display = 'block';
         }
         state.dataSource = 'manual';
@@ -785,13 +887,14 @@ License: MIT
     async function reprocessMesh() {
       if (!state.rawPoints) return;
       LOADING.classList.remove('hidden');
-      setStatus('Re-processing dengan voxel ' + state.voxelSize + ' m...');
+      setStatus('Re-processing: voxel=' + state.voxelSize + 'm, slope≤' + state.maxSlopeDeg + '°, edge×' + state.edgeMultiplier.toFixed(1) + '...');
       try {
         await new Promise(r => setTimeout(r, 30));
-        const downsampled = voxelDownsample(state.rawPoints, state.voxelSize);
-        setStatus('Triangulasi ulang...');
+        const downsampled = voxelDownsample(state.rawPoints, state.voxelSize, state.preserveEdges);
+        setStatus('Triangulasi ulang (' + downsampled.length.toLocaleString() + ' titik)...');
         await new Promise(r => setTimeout(r, 30));
-        state.mesh = triangulate(downsampled, 75, 3);
+        state.mesh = triangulate(downsampled, state.maxSlopeDeg, state.edgeMultiplier);
+        console.log('Mesh stats:', state.mesh.stats);
         updateStats();
         rerender();
         LOADING.classList.add('hidden');
@@ -821,6 +924,10 @@ License: MIT
       UPLOAD_TOGGLE.classList.toggle('collapsed');
     });
 
+    // Daftar kontrol yang mengubah struktur mesh (butuh reprocess, tidak cukup rerender).
+    // Kontrol ini hanya akan update state + label, user harus klik "Proses Ulang" untuk apply.
+    const MESH_CONTROLS = new Set(['voxel', 'maxslope', 'edgemult']);
+
     function wireRange(id, valId, key, suffix, transform) {
       const slider = document.getElementById(id);
       const val = document.getElementById(valId);
@@ -828,26 +935,46 @@ License: MIT
         const v = Number(e.target.value);
         state[key] = transform ? transform(v) : v;
         val.textContent = v + suffix;
-        if (id !== 'voxel') rerender();
+        // Kontrol mesh (voxel, maxslope, edgemult) tidak auto-rerender — butuh reprocess
+        if (!MESH_CONTROLS.has(id)) rerender();
       });
     }
     wireRange('opacity', 'opacity-val', 'opacity', '%', v => v / 100);
     wireRange('zexag', 'zexag-val', 'zExag', '×');
     wireRange('voxel', 'voxel-val', 'voxelSize', ' m');
+    wireRange('maxslope', 'maxslope-val', 'maxSlopeDeg', '°');
+    wireRange('edgemult', 'edgemult-val', 'edgeMultiplier', '×', v => v);
     wireRange('scale-h', 'scale-h-val', 'scaleH', '×');
     wireRange('scale-v', 'scale-v-val', 'scaleV', '×');
 
-    function wireToggle(id, key) {
+    // Perbaiki label edgemult (pakai fixed 1 digit)
+    const edgeMultSlider = document.getElementById('edgemult');
+    const edgeMultVal = document.getElementById('edgemult-val');
+    edgeMultSlider.addEventListener('input', (e) => {
+      edgeMultVal.textContent = Number(e.target.value).toFixed(1) + '×';
+    });
+
+    // Toggle preserve-edges & faceted: keduanya butuh treatment berbeda.
+    // - preserveEdges mengubah hasil downsampling → butuh reprocess
+    // - faceted hanya mengubah rendering → cukup rerender
+    function wireToggle(id, key, needsReprocess) {
       document.getElementById(id).addEventListener('change', (e) => {
         state[key] = e.target.checked;
-        rerender();
+        if (needsReprocess) {
+          // Tidak auto-reprocess (mahal); tampilkan tombol reprocess
+          // User bisa klik "Proses Ulang" ketika sudah set semua
+        } else {
+          rerender();
+        }
       });
     }
-    wireToggle('show-topo', 'showTopo');
-    wireToggle('color-by-elev', 'colorByElev');
-    wireToggle('show-h', 'showH');
-    wireToggle('show-v', 'showV');
-    wireToggle('show-labels', 'showLabels');
+    wireToggle('show-topo', 'showTopo', false);
+    wireToggle('color-by-elev', 'colorByElev', false);
+    wireToggle('faceted', 'faceted', false);
+    wireToggle('preserve-edges', 'preserveEdges', true);
+    wireToggle('show-h', 'showH', false);
+    wireToggle('show-v', 'showV', false);
+    wireToggle('show-labels', 'showLabels', false);
 
     // Auto-start
     tryAutoLoad();
