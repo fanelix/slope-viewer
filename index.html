@@ -162,6 +162,67 @@
       font-family: monospace;
       font-size: 9px;
     }
+    /* ISU 3: Color palette untuk DXF solid color */
+    .color-palette {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 6px;
+      margin-top: 6px;
+    }
+    .color-swatch {
+      width: 100%;
+      height: 32px;           /* fallback untuk browser lama tanpa aspect-ratio */
+      aspect-ratio: 1;        /* override fallback di browser modern */
+      border-radius: 6px;
+      cursor: pointer;
+      border: 2px solid transparent;
+      transition: transform 0.1s, border-color 0.1s;
+      position: relative;
+    }
+    .color-swatch:hover {
+      transform: scale(1.08);
+      border-color: #1d1d1f;
+    }
+    .color-swatch.selected {
+      border-color: #0071e3;
+      box-shadow: 0 0 0 2px rgba(0, 113, 227, 0.25);
+    }
+    .color-swatch.selected::after {
+      content: '✓';
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      color: white;
+      font-weight: bold;
+      font-size: 14px;
+      text-shadow: 0 1px 2px rgba(0,0,0,0.4);
+    }
+    #dxf-color-group.disabled {
+      opacity: 0.45;
+      pointer-events: none;
+    }
+    /* ISU 4: Grid labels (Easting/Northing/Elevation) */
+    .grid-label {
+      font-size: 10px;
+      font-family: 'Consolas', 'Monaco', monospace;
+      color: #1d1d1f;
+      background: rgba(255, 255, 255, 0.75);
+      padding: 1px 4px;
+      border-radius: 2px;
+      pointer-events: none;
+      user-select: none;
+      white-space: nowrap;
+    }
+    .grid-label-easting {
+      color: #b91c1c;  /* red — matching X axis */
+    }
+    .grid-label-northing {
+      color: #15803d;  /* green — matching Y axis */
+    }
+    .grid-label-elevation {
+      color: #1e40af;  /* blue — matching Z axis */
+      font-weight: 600;
+    }
   </style>
 </head>
 <body>
@@ -247,6 +308,18 @@
         <span>Color by elevation</span>
         <input type="checkbox" id="color-by-elev" checked />
       </div>
+
+      <!-- ISU 3: Color palette picker untuk DXF solid color (hanya aktif saat colorByElev off) -->
+      <div class="control-group" id="dxf-color-group" style="margin-top:8px;">
+        <label>Warna DXF (solid mode): <span class="value" id="dxf-color-name">Olive</span></label>
+        <div class="color-palette" id="dxf-color-palette">
+          <!-- Color swatches di-inject via JavaScript agar single source of truth -->
+        </div>
+        <div style="font-size:10px; color:#86868b; margin-top:4px;">
+          Aktif ketika "Color by elevation" dimatikan
+        </div>
+      </div>
+
       <div class="toggle">
         <span>Faceted (tidak smooth)</span>
         <input type="checkbox" id="faceted" checked />
@@ -259,6 +332,16 @@
         <span>Tampilkan grid</span>
         <input type="checkbox" id="show-grid" checked />
       </div>
+
+      <!-- ISU 4: Grid spacing control — default 1000m, bisa diubah user -->
+      <div class="control-group" id="grid-spacing-group" style="margin-top:4px;">
+        <label>Grid spacing: <span class="value" id="grid-spacing-val">1000 m</span></label>
+        <input type="range" id="grid-spacing" min="100" max="5000" step="100" value="1000" />
+        <div style="font-size:10px; color:#86868b; margin-top:2px;">
+          Major grid lines setiap 5× spacing (tebal)
+        </div>
+      </div>
+
       <button id="reprocess-btn" class="secondary" style="margin-top:8px; display:none;">
         Proses Ulang dengan Parameter Baru
       </button>
@@ -318,10 +401,11 @@
       </div>
 
       <div class="controls-hint">
-        <b>Kontrol Mouse:</b><br>
-        🖱️ <kbd>Kiri</kbd> + geser = Rotate / Orbit<br>
-        🖱️ <kbd>Wheel Tengah</kbd> + geser = Pan / Geser<br>
-        🖱️ <kbd>Kanan</kbd> + geser = Zoom / Dolly<br>
+        <b>Kontrol Mouse (Mining style):</b><br>
+        🖱️ <kbd>Kiri</kbd> drag = Rotate / Orbit<br>
+        🖱️ <kbd>Tengah</kbd> drag = Rotate / Orbit<br>
+        🖱️ <kbd>Kanan</kbd> drag = Pan / Geser<br>
+        ⇧ <kbd>Shift</kbd> + <kbd>Kiri</kbd> drag = Pan<br>
         🖱️ <kbd>Scroll</kbd> = Zoom In/Out<br>
         ⌨️ <kbd>1</kbd>/<kbd>2</kbd>/<kbd>3</kbd>/<kbd>4</kbd> = Preset Views
       </div>
@@ -370,10 +454,37 @@
       preserveEdges: true,
       wireframe: false,
       showGrid: true,
+      gridSpacing: 1000,          // ISU 4: Default grid spacing = 1000m
+      dxfSolidColor: '#8B8B5E',   // ISU 3: Warna solid untuk DXF ketika colorByElev = false
       dataSource: 'none',
       currentView: 'iso',
     };
     let dxfFile = null, csvFile = null;
+
+    // ISU 3: 10 warna dasar untuk pewarnaan DXF (preset palette).
+    // Dipilih agar distinct, sesuai konvensi geotechnical:
+    //  - Olive (default geology/terrain neutral)
+    //  - Brown (soil/tanah)
+    //  - Grey (rock/batuan)
+    //  - Tan (weathered material)
+    //  - Slate blue (water/dam)
+    //  - Forest green (vegetation/original ground)
+    //  - Steel (steel structures/infrastructure)
+    //  - Red-brown (argillic/iron-oxide zone)
+    //  - Orange (warning/highlighted area)
+    //  - White (clean/reference)
+    const DXF_COLOR_PRESETS = [
+      { name: 'Olive',        hex: '#8B8B5E' },
+      { name: 'Brown',        hex: '#8B5A2B' },
+      { name: 'Grey',         hex: '#808080' },
+      { name: 'Tan',          hex: '#D2B48C' },
+      { name: 'Slate Blue',   hex: '#4A6D8C' },
+      { name: 'Forest Green', hex: '#2D5016' },
+      { name: 'Steel',        hex: '#4682B4' },
+      { name: 'Red-Brown',    hex: '#A0522D' },
+      { name: 'Orange',       hex: '#D68910' },
+      { name: 'White',        hex: '#E8E8E0' },
+    ];
 
     const COLUMN_ALIASES = {
       id:  ['ID', 'ID_POINT', 'POINT_ID', 'NAME', 'NAMA'],
@@ -415,24 +526,62 @@
     labelRenderer.domElement.style.pointerEvents = 'none';
     container.appendChild(labelRenderer.domElement);
 
-    // --- ORBIT CONTROLS (diperbaiki untuk geotechnical workflow) ---
+    // --- ORBIT CONTROLS (mining industry standard: Surpac/GEM4D/Leapfrog/MineSight style) ---
+    // Mapping mouse:
+    //   - Middle Mouse Button (MMB) drag  = ROTATE / ORBIT     (Surpac/GEM4D default)
+    //   - Left Mouse Button (LMB)  drag   = ROTATE / ORBIT     (fallback untuk pengguna tanpa MMB)
+    //   - Shift + LMB drag                 = PAN
+    //   - Right Mouse Button (RMB) drag    = PAN                (Leapfrog-style)
+    //   - Scroll wheel                     = ZOOM / DOLLY       (universal)
+    //   - Ctrl + LMB drag                  = ZOOM (alternative, industri mining)
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.dampingFactor = 0.08;
-    controls.screenSpacePanning = true; // PANNING LEBIH INTUITIF
+    controls.screenSpacePanning = true; // Pan mengikuti layar — lebih intuitif di flat terrain
     controls.mouseButtons = {
-      LEFT: THREE.MOUSE.ROTATE,    // Klik kiri + geser = Orbit
-      MIDDLE: THREE.MOUSE.PAN,       // Klik wheel tengah + geser = Pan
-      RIGHT: THREE.MOUSE.DOLLY       // Klik kanan + geser = Zoom/Dolly
+      LEFT: THREE.MOUSE.ROTATE,     // LMB drag = Orbit/Rotate
+      MIDDLE: THREE.MOUSE.ROTATE,   // MMB drag = Orbit/Rotate (Surpac/GEM4D standard)
+      RIGHT: THREE.MOUSE.PAN        // RMB drag = Pan (Leapfrog-style)
     };
-    controls.rotateSpeed = 0.6;        // Lebih lambat = lebih presisi
-    controls.panSpeed = 0.8;
-    controls.zoomSpeed = 1.0;
-    controls.minDistance = 10;
-    controls.maxDistance = 50000;
-    // Batasi rotasi agar tidak "terbalik" ke bawah tanah
-    controls.maxPolarAngle = Math.PI * 0.95; // Hampir 180 derajat
-    controls.minPolarAngle = 0.05;           // Sedikit di atas horizon
+    // Touch controls untuk perangkat mobile/tablet
+    controls.touches = {
+      ONE: THREE.TOUCH.ROTATE,
+      TWO: THREE.TOUCH.DOLLY_PAN
+    };
+    controls.rotateSpeed = 0.8;        // Lebih responsif
+    controls.panSpeed = 1.0;
+    controls.zoomSpeed = 1.2;
+    controls.minDistance = 1;          // Sangat dekat untuk inspeksi detail bench
+    controls.maxDistance = 100000;     // Sangat jauh untuk overview regional
+    // PENTING: izinkan rotasi FULL 360° vertical agar bisa melihat dari bawah/atas
+    // Ini memperbaiki isu "tidak bisa menggerakan gambar ke bawah"
+    controls.maxPolarAngle = Math.PI;  // Full 180° — bisa melihat dari bawah terrain
+    controls.minPolarAngle = 0;        // Full 0° — bisa melihat dari atas (plan view murni)
+    // Horizontal rotation tanpa batas
+    controls.minAzimuthAngle = -Infinity;
+    controls.maxAzimuthAngle = Infinity;
+
+    // --- SHIFT + LMB = PAN override ---
+    // OrbitControls secara default tidak mendukung Shift modifier untuk pan via LMB.
+    // Kita handle manual via event listener: saat Shift ditekan, swap LEFT ke PAN.
+    let shiftHeld = false;
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Shift' && !shiftHeld) {
+        shiftHeld = true;
+        controls.mouseButtons.LEFT = THREE.MOUSE.PAN;
+      }
+    });
+    window.addEventListener('keyup', (e) => {
+      if (e.key === 'Shift') {
+        shiftHeld = false;
+        controls.mouseButtons.LEFT = THREE.MOUSE.ROTATE;
+      }
+    });
+    // Reset jika fokus window hilang (agar tidak stuck di PAN mode)
+    window.addEventListener('blur', () => {
+      shiftHeld = false;
+      controls.mouseButtons.LEFT = THREE.MOUSE.ROTATE;
+    });
 
     // --- LIGHTS ---
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
@@ -459,24 +608,193 @@
     let gridHelper = null;
     let axesHelper = null;
     let boxHelper = null;
+    let gridLabelsGroup = null;  // Grup untuk label elevasi/koordinat
+    let elevationLinesGroup = null; // Grup untuk garis elevasi vertical reference
 
-    function updateHelpers(span, center) {
-      if (gridHelper) { scene.remove(gridHelper); gridHelper.dispose(); }
-      if (axesHelper) { scene.remove(axesHelper); }
-      if (boxHelper) { scene.remove(boxHelper); }
-
-      if (state.showGrid && span > 0) {
-        const gridSize = Math.ceil(span / 50) * 50 * 2;
-        const gridDiv = Math.max(20, Math.floor(gridSize / 50));
-        gridHelper = new THREE.GridHelper(gridSize, gridDiv, 0x888888, 0xcccccc);
-        gridHelper.rotation.x = Math.PI / 2;
-        gridHelper.position.set(center.x, center.y, center.z);
-        scene.add(gridHelper);
-
-        axesHelper = new THREE.AxesHelper(span * 0.1);
-        axesHelper.position.copy(center);
-        scene.add(axesHelper);
+    /**
+     * Build custom grid dengan spacing yang dikonfigurasi (default 1000m).
+     * Grid dibangun di plane XY pada level zExCenter, dengan label koordinat
+     * Easting (X) dan Northing (Y) di tepi grid. Juga menambahkan 3 garis
+     * referensi elevasi vertikal di sudut mesh dengan label Z.
+     *
+     * @param {number} spanXY   - horizontal span dari bbox (m)
+     * @param {THREE.Vector3} center - center dari scene (sudah dalam Z-exaggerated space)
+     * @param {Object} bbox     - bbox dari mesh (min/max X/Y/Z dalam raw coord)
+     */
+    function updateHelpers(spanXY, center, bbox) {
+      // Bersihkan helper lama
+      if (gridHelper) {
+        scene.remove(gridHelper);
+        // gridHelper sekarang adalah Group — dispose semua child geometry/material
+        gridHelper.traverse((obj) => {
+          if (obj.geometry) obj.geometry.dispose();
+          if (obj.material) {
+            if (Array.isArray(obj.material)) obj.material.forEach(m => m.dispose());
+            else obj.material.dispose();
+          }
+        });
+        gridHelper = null;
       }
+      if (axesHelper) { scene.remove(axesHelper); axesHelper = null; }
+      // Note: boxHelper dikelola oleh buildTopoMesh, tidak perlu dibersihkan di sini.
+      if (gridLabelsGroup) {
+        // CSS2DObject punya `.element` DOM node yang TIDAK otomatis di-remove
+        // saat group dihapus dari scene. Harus di-remove manual untuk mencegah
+        // memory leak DOM node saat grid di-toggle berulang.
+        gridLabelsGroup.traverse((obj) => {
+          if (obj.element && obj.element.parentNode) {
+            obj.element.parentNode.removeChild(obj.element);
+          }
+        });
+        scene.remove(gridLabelsGroup);
+        gridLabelsGroup = null;
+      }
+      if (elevationLinesGroup) {
+        scene.remove(elevationLinesGroup);
+        elevationLinesGroup.traverse((obj) => {
+          if (obj.geometry) obj.geometry.dispose();
+          if (obj.material) obj.material.dispose();
+        });
+        elevationLinesGroup = null;
+      }
+
+      if (!state.showGrid || spanXY <= 0 || !bbox) return;
+
+      // Ambil spacing dari state (default 1000m). Dibulatkan agar rapi.
+      const spacing = state.gridSpacing;
+
+      // Extend grid 20% di luar bbox mesh agar terlihat rapi
+      const pad = spanXY * 0.10;
+      const xMinGrid = Math.floor((bbox.minX - pad) / spacing) * spacing;
+      const xMaxGrid = Math.ceil((bbox.maxX + pad) / spacing) * spacing;
+      const yMinGrid = Math.floor((bbox.minY - pad) / spacing) * spacing;
+      const yMaxGrid = Math.ceil((bbox.maxY + pad) / spacing) * spacing;
+
+      const gridZ = center.z; // Grid pada level zExCenter (sudah di-exaggerate)
+
+      // --- GRID LINES ---
+      const lineMajor = new THREE.LineBasicMaterial({
+        color: 0x888888,
+        transparent: true,
+        opacity: 0.6,
+      });
+      const lineMinor = new THREE.LineBasicMaterial({
+        color: 0xbbbbbb,
+        transparent: true,
+        opacity: 0.35,
+      });
+
+      const gridGroup = new THREE.Group();
+      gridGroup.name = 'GridGroup';
+
+      // Garis sejajar sumbu Y (vertikal di plan view) pada setiap X step
+      const majorStep = spacing * 5; // Setiap 5x spacing = major (tebal)
+      for (let x = xMinGrid; x <= xMaxGrid + 0.001; x += spacing) {
+        const isMajor = Math.abs(Math.round(x / majorStep) * majorStep - x) < 0.5;
+        const geom = new THREE.BufferGeometry();
+        const pos = new Float32Array([
+          x, yMinGrid, gridZ,
+          x, yMaxGrid, gridZ,
+        ]);
+        geom.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+        const line = new THREE.Line(geom, isMajor ? lineMajor : lineMinor);
+        gridGroup.add(line);
+      }
+      // Garis sejajar sumbu X pada setiap Y step
+      for (let y = yMinGrid; y <= yMaxGrid + 0.001; y += spacing) {
+        const isMajor = Math.abs(Math.round(y / majorStep) * majorStep - y) < 0.5;
+        const geom = new THREE.BufferGeometry();
+        const pos = new Float32Array([
+          xMinGrid, y, gridZ,
+          xMaxGrid, y, gridZ,
+        ]);
+        geom.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+        const line = new THREE.Line(geom, isMajor ? lineMajor : lineMinor);
+        gridGroup.add(line);
+      }
+      gridHelper = gridGroup;
+      scene.add(gridHelper);
+
+      // --- AXES HELPER (X=Red/Easting, Y=Green/Northing, Z=Blue/Elevation) ---
+      axesHelper = new THREE.AxesHelper(spanXY * 0.12);
+      axesHelper.position.copy(center);
+      scene.add(axesHelper);
+
+      // --- ELEVATION REFERENCE LINES (3 garis vertikal di pojok) ---
+      // Garis vertikal dari bbox.minZ ke bbox.maxZ (dalam exaggerated space)
+      // untuk memberikan konteks elevasi visual.
+      const zExMin = exaggerateZ(bbox.minZ, (bbox.minZ + bbox.maxZ) / 2, state.zExag);
+      const zExMax = exaggerateZ(bbox.maxZ, (bbox.minZ + bbox.maxZ) / 2, state.zExag);
+
+      elevationLinesGroup = new THREE.Group();
+      elevationLinesGroup.name = 'ElevationLines';
+      const elevLineMat = new THREE.LineBasicMaterial({
+        color: 0x3498db,
+        transparent: true,
+        opacity: 0.6,
+      });
+
+      // Garis vertikal di sudut NW (min X, max Y) sebagai reference
+      const cornerX = xMinGrid;
+      const cornerY = yMaxGrid;
+      const vGeom = new THREE.BufferGeometry();
+      vGeom.setAttribute('position', new THREE.BufferAttribute(new Float32Array([
+        cornerX, cornerY, zExMin,
+        cornerX, cornerY, zExMax,
+      ]), 3));
+      const vLine = new THREE.Line(vGeom, elevLineMat);
+      elevationLinesGroup.add(vLine);
+
+      // Tick marks pada elevation line setiap 100m (raw elevation)
+      const elevTickSpacing = Math.max(50, Math.round((bbox.maxZ - bbox.minZ) / 10 / 50) * 50);
+      const elevTickMat = new THREE.LineBasicMaterial({ color: 0x2980b9, transparent: true, opacity: 0.8 });
+      const elevMin = Math.ceil(bbox.minZ / elevTickSpacing) * elevTickSpacing;
+      const elevMax = Math.floor(bbox.maxZ / elevTickSpacing) * elevTickSpacing;
+      const tickLen = spanXY * 0.015;
+      for (let elev = elevMin; elev <= elevMax + 0.001; elev += elevTickSpacing) {
+        const zEx = exaggerateZ(elev, (bbox.minZ + bbox.maxZ) / 2, state.zExag);
+        const tGeom = new THREE.BufferGeometry();
+        tGeom.setAttribute('position', new THREE.BufferAttribute(new Float32Array([
+          cornerX, cornerY, zEx,
+          cornerX - tickLen, cornerY + tickLen, zEx,
+        ]), 3));
+        elevationLinesGroup.add(new THREE.Line(tGeom, elevTickMat));
+      }
+      scene.add(elevationLinesGroup);
+
+      // --- LABELS (Easting / Northing / Elevation) ---
+      gridLabelsGroup = new THREE.Group();
+      gridLabelsGroup.name = 'GridLabels';
+
+      // Easting labels (sepanjang tepi Y min, setiap major step)
+      for (let x = xMinGrid; x <= xMaxGrid + 0.001; x += majorStep) {
+        const div = document.createElement('div');
+        div.className = 'grid-label grid-label-easting';
+        div.textContent = 'E ' + x.toFixed(0);
+        const label = new CSS2DObject(div);
+        label.position.set(x, yMinGrid - spacing * 0.3, gridZ);
+        gridLabelsGroup.add(label);
+      }
+      // Northing labels (sepanjang tepi X min, setiap major step)
+      for (let y = yMinGrid; y <= yMaxGrid + 0.001; y += majorStep) {
+        const div = document.createElement('div');
+        div.className = 'grid-label grid-label-northing';
+        div.textContent = 'N ' + y.toFixed(0);
+        const label = new CSS2DObject(div);
+        label.position.set(xMinGrid - spacing * 0.3, y, gridZ);
+        gridLabelsGroup.add(label);
+      }
+      // Elevation labels (di sudut NW, mengikuti tick marks)
+      for (let elev = elevMin; elev <= elevMax + 0.001; elev += elevTickSpacing) {
+        const zEx = exaggerateZ(elev, (bbox.minZ + bbox.maxZ) / 2, state.zExag);
+        const div = document.createElement('div');
+        div.className = 'grid-label grid-label-elevation';
+        div.textContent = 'EL ' + elev.toFixed(0) + ' m';
+        const label = new CSS2DObject(div);
+        label.position.set(cornerX - tickLen * 1.2, cornerY + tickLen * 1.2, zEx);
+        gridLabelsGroup.add(label);
+      }
+      scene.add(gridLabelsGroup);
     }
 
     // --- GROUPS ---
@@ -492,10 +810,19 @@
         debugInfo.textContent = 'Menunggu data...';
         return;
       }
+      // Hindari Math.min(...arr) / Math.max(...arr) karena akan stack-overflow
+      // untuk array besar (>~100k elements). Gunakan explicit loop.
       const xs = state.mesh.x, ys = state.mesh.y, zs = state.mesh.z;
-      const minX = Math.min(...xs), maxX = Math.max(...xs);
-      const minY = Math.min(...ys), maxY = Math.max(...ys);
-      const minZ = Math.min(...zs), maxZ = Math.max(...zs);
+      const n = xs.length;
+      let minX = Infinity, maxX = -Infinity;
+      let minY = Infinity, maxY = -Infinity;
+      let minZ = Infinity, maxZ = -Infinity;
+      for (let i = 0; i < n; i++) {
+        const xv = xs[i], yv = ys[i], zv = zs[i];
+        if (xv < minX) minX = xv; if (xv > maxX) maxX = xv;
+        if (yv < minY) minY = yv; if (yv > maxY) maxY = yv;
+        if (zv < minZ) minZ = zv; if (zv > maxZ) maxZ = zv;
+      }
       const span = Math.max(maxX - minX, maxY - minY);
       debugInfo.innerHTML = `BBox: ${minX.toFixed(0)},${minY.toFixed(0)},${minZ.toFixed(0)}<br>→ ${maxX.toFixed(0)},${maxY.toFixed(0)},${maxZ.toFixed(0)}<br>Span: ${span.toFixed(0)}m<br>Cam: ${camera.position.x.toFixed(0)},${camera.position.y.toFixed(0)},${camera.position.z.toFixed(0)}<br>Target: ${controls.target.x.toFixed(0)},${controls.target.y.toFixed(0)},${controls.target.z.toFixed(0)}`;
     }
@@ -522,18 +849,32 @@
     // ============================================================
     // PRESET VIEW SYSTEM
     // ============================================================
+    // Cached bounding box untuk menghindari re-compute pada setiap panggilan.
+    // Invalidasi: di-reset ke null setiap kali state.mesh berubah (via buildTopoMesh).
+    let _bboxCache = null;
+
     function getMeshBoundingBox() {
       if (!state.mesh) return null;
+      if (_bboxCache) return _bboxCache;
+      // Gunakan explicit loop untuk menghindari stack overflow pada array besar.
       const xs = state.mesh.x, ys = state.mesh.y, zs = state.mesh.z;
-      const minX = Math.min(...xs), maxX = Math.max(...xs);
-      const minY = Math.min(...ys), maxY = Math.max(...ys);
-      const minZ = Math.min(...zs), maxZ = Math.max(...zs);
+      const n = xs.length;
+      let minX = Infinity, maxX = -Infinity;
+      let minY = Infinity, maxY = -Infinity;
+      let minZ = Infinity, maxZ = -Infinity;
+      for (let i = 0; i < n; i++) {
+        const xv = xs[i], yv = ys[i], zv = zs[i];
+        if (xv < minX) minX = xv; if (xv > maxX) maxX = xv;
+        if (yv < minY) minY = yv; if (yv > maxY) maxY = yv;
+        if (zv < minZ) minZ = zv; if (zv > maxZ) maxZ = zv;
+      }
       const cx = (minX + maxX) / 2;
       const cy = (minY + maxY) / 2;
       const cz = (minZ + maxZ) / 2;
       const spanXY = Math.max(maxX - minX, maxY - minY);
       const spanZ = maxZ - minZ;
-      return { minX, maxX, minY, maxY, minZ, maxZ, cx, cy, cz, spanXY, spanZ };
+      _bboxCache = { minX, maxX, minY, maxY, minZ, maxZ, cx, cy, cz, spanXY, spanZ };
+      return _bboxCache;
     }
 
     function setPresetView(viewName) {
@@ -899,6 +1240,10 @@
     let zCenter = 0;
 
     function buildTopoMesh() {
+      // Invalidasi bbox cache karena mesh state mungkin baru (re-build).
+      // getMeshBoundingBox akan re-compute pada panggilan berikutnya.
+      _bboxCache = null;
+
       if (currentMesh) {
         topoGroup.remove(currentMesh);
         if (currentMesh.geometry) currentMesh.geometry.dispose();
@@ -990,7 +1335,9 @@
             opacity: 0.9,
           })
         : new THREE.MeshLambertMaterial({
-            color: state.colorByElev ? 0xffffff : 0x8B8B5E,
+            // ISU 3: Ketika colorByElev dimatikan, gunakan solid color dari state
+            // yang bisa diubah user via color picker (10 preset warna).
+            color: state.colorByElev ? 0xffffff : new THREE.Color(state.dxfSolidColor),
             vertexColors: state.colorByElev,
             transparent: true,
             opacity: state.opacity,
@@ -1006,6 +1353,7 @@
       if (boxHelper) { scene.remove(boxHelper); }
       const box = new THREE.Box3().setFromObject(currentMesh);
       boxHelper = new THREE.Box3Helper(box, 0xff0000);
+      boxHelper.visible = false; // Hidden by default — hanya untuk debug internal, bisa di-enable via console
       scene.add(boxHelper);
 
       console.log('[Mesh] BBox:', box.min.x.toFixed(1), box.min.y.toFixed(1), box.min.z.toFixed(1), '→', box.max.x.toFixed(1), box.max.y.toFixed(1), box.max.z.toFixed(1));
@@ -1014,6 +1362,10 @@
     function buildMonitoringObjects() {
       while (monitorGroup.children.length > 0) {
         const child = monitorGroup.children[0];
+        // CSS2DObject: remove DOM element untuk mencegah leak
+        if (child.element && child.element.parentNode) {
+          child.element.parentNode.removeChild(child.element);
+        }
         monitorGroup.remove(child);
         if (child.geometry) child.geometry.dispose();
         if (child.material) {
@@ -1024,8 +1376,14 @@
       if (!state.monitoring) return;
 
       const pts = state.monitoring;
-      const rx = Math.max(...pts.map(p => p.e0)) - Math.min(...pts.map(p => p.e0));
-      const ry = Math.max(...pts.map(p => p.n0)) - Math.min(...pts.map(p => p.n0));
+      // Compute range via explicit loop (robust untuk N besar, walaupun biasanya kecil).
+      let minE = Infinity, maxE = -Infinity, minN = Infinity, maxN = -Infinity;
+      for (let i = 0; i < pts.length; i++) {
+        const pe = pts[i].e0, pn = pts[i].n0;
+        if (pe < minE) minE = pe; if (pe > maxE) maxE = pe;
+        if (pn < minN) minN = pn; if (pn > maxN) maxN = pn;
+      }
+      const rx = maxE - minE, ry = maxN - minN;
       const r = Math.max(rx, ry);
       const sphereRadius = Math.max(1.0, r * 0.004);
       const headRatio = 0.22;
@@ -1070,7 +1428,41 @@
       }
     }
 
-    function updateCameraTarget() {
+    // Update kamera frustum (near/far) dan shadow camera agar sesuai dengan bounding box.
+    // TIDAK mengubah posisi kamera atau target — hanya parameter proyeksi.
+    // Dipanggil saat mesh dibangun ulang agar clipping plane tetap valid.
+    function updateCameraFrustumAndShadows() {
+      const bbox = getMeshBoundingBox();
+      if (!bbox) return;
+
+      const { cx, cy, cz, spanXY } = bbox;
+      const zExCenter = exaggerateZ(cz, cz, state.zExag);
+      const zExMin = exaggerateZ(bbox.minZ, cz, state.zExag);
+      const zExMax = exaggerateZ(bbox.maxZ, cz, state.zExag);
+      const zSpan = zExMax - zExMin;
+      const dist = Math.max(spanXY * 1.5, zSpan * 2, 100);
+
+      // Update camera clipping planes agar selalu cukup untuk menampilkan seluruh scene.
+      // near/far di-adjust proporsional — tidak mengubah posisi kamera.
+      camera.near = Math.max(0.1, dist * 0.001);
+      camera.far = Math.max(10000, dist * 10);
+      camera.updateProjectionMatrix();
+
+      // Update shadow camera agar shadow tetap terrender pada seluruh mesh.
+      const d = dist * 1.2;
+      dirLight.shadow.camera.left = -d;
+      dirLight.shadow.camera.right = d;
+      dirLight.shadow.camera.top = d;
+      dirLight.shadow.camera.bottom = -d;
+      dirLight.shadow.camera.updateProjectionMatrix();
+
+      // Update grid/axes helpers (sesuai Z-exaggeration terbaru).
+      updateHelpers(spanXY, new THREE.Vector3(cx, cy, zExCenter), bbox);
+    }
+
+    // Posisikan kamera ke default view (hanya dipanggil pada initial load
+    // atau saat user klik preset view button / reset camera button).
+    function positionCameraToDefault() {
       const bbox = getMeshBoundingBox();
       if (!bbox) return;
 
@@ -1085,30 +1477,34 @@
       const dist = Math.max(spanXY * 1.5, zSpan * 2, 100);
       camera.position.set(cx - dist * 0.6, cy - dist * 0.8, zExCenter + dist * 0.4);
 
-      camera.near = Math.max(0.1, dist * 0.001);
-      camera.far = Math.max(10000, dist * 10);
       camera.updateProjectionMatrix();
+      controls.update();
 
-      const d = dist * 1.2;
-      dirLight.shadow.camera.left = -d;
-      dirLight.shadow.camera.right = d;
-      dirLight.shadow.camera.top = d;
-      dirLight.shadow.camera.bottom = -d;
-      dirLight.shadow.camera.updateProjectionMatrix();
-
-      updateHelpers(spanXY, new THREE.Vector3(cx, cy, zExCenter));
-
-      console.log('[Camera] pos:', camera.position.x.toFixed(1), camera.position.y.toFixed(1), camera.position.z.toFixed(1), 'target:', cx.toFixed(1), cy.toFixed(1), zExCenter.toFixed(1), 'dist:', dist.toFixed(1));
+      console.log('[Camera] pos:', camera.position.x.toFixed(1), camera.position.y.toFixed(1), camera.position.z.toFixed(1),
+                  'target:', cx.toFixed(1), cy.toFixed(1), zExCenter.toFixed(1), 'dist:', dist.toFixed(1));
     }
 
     function resetCamera() {
       setPresetView(state.currentView);
     }
 
+    // rebuildScene — dipanggil saat parameter sidebar berubah.
+    // PENTING: tidak mereset posisi kamera. Hanya rebuild geometri dan update
+    // parameter frustum/shadow/helpers agar view user tetap terjaga.
     function rebuildScene() {
       buildTopoMesh();
       buildMonitoringObjects();
-      updateCameraTarget();
+      updateCameraFrustumAndShadows();
+      updateDebugInfo();
+    }
+
+    // rebuildSceneInitial — dipanggil hanya pada initial load data (auto atau manual).
+    // Posisikan kamera ke default view setelah build selesai.
+    function rebuildSceneInitial() {
+      buildTopoMesh();
+      buildMonitoringObjects();
+      updateCameraFrustumAndShadows();
+      positionCameraToDefault();
       updateDebugInfo();
     }
 
@@ -1137,7 +1533,11 @@
       }
       if (state.monitoring) {
         document.getElementById('stat-points').textContent = state.monitoring.length;
-        const maxDisp = Math.max(...state.monitoring.map(p => p.dispTotal));
+        let maxDisp = 0;
+        for (let i = 0; i < state.monitoring.length; i++) {
+          const d = state.monitoring[i].dispTotal;
+          if (d > maxDisp) maxDisp = d;
+        }
         document.getElementById('stat-max-disp').textContent = (maxDisp * 1000).toFixed(1) + ' mm';
         document.getElementById('stat-bahaya').textContent = state.monitoring.filter(p => p.category.name === 'Bahaya').length;
       }
@@ -1214,7 +1614,7 @@
         UPLOAD_SECTION.classList.add('section-collapsed');
         UPLOAD_TOGGLE.classList.add('collapsed');
         updateStats();
-        rebuildScene();
+        rebuildSceneInitial();
         // Set default view setelah load
         setPresetView('iso');
         LOADING.classList.add('hidden');
@@ -1256,7 +1656,7 @@
         MODE_INDICATOR.textContent = 'Manual';
         MODE_INDICATOR.className = '';
         updateStats();
-        rebuildScene();
+        rebuildSceneInitial();
         setPresetView('iso');
         LOADING.classList.add('hidden');
       } catch (e) {
@@ -1318,8 +1718,34 @@
       const val = document.getElementById(valId);
       slider.addEventListener('input', (e) => {
         const v = Number(e.target.value);
+        const oldZExag = state.zExag;
         state[key] = transform ? transform(v) : v;
         val.textContent = v + suffix;
+
+        // ISU 2 (special case): Saat zExag berubah, Z-exaggerated coordinates bergeser.
+        // Remap posisi kamera dan target dari (oldZCenter, oldZExag) ke (newZCenter, newZExag)
+        // agar FRAMING user (sudut pandang & jarak) terjaga tapi mesh tetap di-frame dengan benar.
+        //
+        // Math: di exaggerated space, untuk point dengan raw z = z_raw:
+        //   zEx = (z_raw - zCenter) * zExag + zCenter
+        // Jadi jika kita punya point di exaggerated space z_ex_old dengan zExag_old,
+        // maka raw z-nya adalah: z_raw = (z_ex_old - zCenter) / zExag_old + zCenter
+        // Dan di exaggerated space baru (zExag_new, zCenter sama):
+        //   z_ex_new = (z_raw - zCenter) * zExag_new + zCenter
+        //            = ((z_ex_old - zCenter) / zExag_old) * zExag_new + zCenter
+        // Guard: mesh harus sudah ter-load agar zCenter punya nilai valid
+        // dan remapping matematisnya masuk akal.
+        if (id === 'zexag' && oldZExag !== state.zExag && state.mesh && Number.isFinite(zCenter) && oldZExag > 0) {
+          const zc = zCenter;
+          // Remap camera Z: z_raw = (z_ex - zc) / zExag + zc, kemudian z_ex_new = (z_raw - zc) * zExag_new + zc
+          const camZRaw = (camera.position.z - zc) / oldZExag + zc;
+          camera.position.z = (camZRaw - zc) * state.zExag + zc;
+          // Remap target Z dengan formula yang sama
+          const tgtZRaw = (controls.target.z - zc) / oldZExag + zc;
+          controls.target.z = (tgtZRaw - zc) * state.zExag + zc;
+          controls.update();
+        }
+
         if (!MESH_CONTROLS.has(id)) rebuildScene();
       });
     }
@@ -1352,7 +1778,8 @@
       });
     }
     wireToggle('show-topo', 'showTopo', false);
-    wireToggle('color-by-elev', 'colorByElev', false);
+    // wireToggle('color-by-elev', ...) akan di-handle custom di bawah karena
+    // perlu update state disabled dari color palette juga.
     wireToggle('faceted', 'faceted', false);
     wireToggle('preserve-edges', 'preserveEdges', true);
     wireToggle('show-h', 'showH', false);
@@ -1360,6 +1787,60 @@
     wireToggle('show-labels', 'showLabels', false);
     wireToggle('wireframe', 'wireframe', false);
     wireToggle('show-grid', 'showGrid', false);
+
+    // ISU 3: Color-by-elevation toggle dengan enable/disable color palette
+    const dxfColorGroup = document.getElementById('dxf-color-group');
+    function updateColorPaletteEnabled() {
+      if (state.colorByElev) {
+        dxfColorGroup.classList.add('disabled');
+      } else {
+        dxfColorGroup.classList.remove('disabled');
+      }
+    }
+    document.getElementById('color-by-elev').addEventListener('change', (e) => {
+      state.colorByElev = e.target.checked;
+      updateColorPaletteEnabled();
+      rebuildScene();
+    });
+
+    // ISU 3: Build color palette swatches
+    const paletteContainer = document.getElementById('dxf-color-palette');
+    const dxfColorName = document.getElementById('dxf-color-name');
+    DXF_COLOR_PRESETS.forEach((preset, idx) => {
+      const swatch = document.createElement('div');
+      swatch.className = 'color-swatch' + (preset.hex === state.dxfSolidColor ? ' selected' : '');
+      swatch.style.backgroundColor = preset.hex;
+      swatch.title = preset.name + ' (' + preset.hex + ')';
+      swatch.dataset.hex = preset.hex;
+      swatch.dataset.name = preset.name;
+      swatch.addEventListener('click', () => {
+        state.dxfSolidColor = preset.hex;
+        dxfColorName.textContent = preset.name;
+        // Update selected state
+        paletteContainer.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('selected'));
+        swatch.classList.add('selected');
+        // Rebuild hanya jika color-by-elev mati (karena hanya berpengaruh di solid mode)
+        if (!state.colorByElev) {
+          rebuildScene();
+        }
+      });
+      paletteContainer.appendChild(swatch);
+    });
+    // Set initial state
+    updateColorPaletteEnabled();
+    // Set initial color name display sesuai state.dxfSolidColor
+    const initialPreset = DXF_COLOR_PRESETS.find(p => p.hex === state.dxfSolidColor);
+    if (initialPreset) dxfColorName.textContent = initialPreset.name;
+
+    // ISU 4: Grid spacing slider
+    const gridSpacingSlider = document.getElementById('grid-spacing');
+    const gridSpacingVal = document.getElementById('grid-spacing-val');
+    gridSpacingSlider.addEventListener('input', (e) => {
+      const v = Number(e.target.value);
+      state.gridSpacing = v;
+      gridSpacingVal.textContent = v + ' m';
+      rebuildScene();
+    });
 
     tryAutoLoad();
   </script>
