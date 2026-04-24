@@ -3,12 +3,14 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Slope Monitoring 3D Viewer</title>
+  <title>Slope Monitor 3D — Three.js</title>
 
-  <!-- Library dari CDN -->
+  <!-- Global libraries (DXF, CSV, Delaunay) -->
   <script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>
   <script>/*! dxf-parser v1.1.2 - bundled */
-!function(e,a){"object"==typeof exports&&"object"==typeof module?module.exports=a():"function"==typeof define&&define.amd?define([],a):"object"==typeof exports?exports.DxfParser=a():e.DxfParser=a()}("undefined"!=typeof self?self:this,(function(){return(()=>{var e={43:function(e,a,t){var r,n;!function(s,o){"use strict";void 0===(n="function"==typeof(r=function(){var e=function(){},a="undefined",t=typeof window!==a&&typeof window.navigator!==a&&/Trident\/|MSIE /.test(window.navigator.userAgent),r=["trace","debug","info","warn","error"];function n(e,a){var t=e[a];if("function"==typeof t.bind)return t.bind(e);try{return Function.prototype.bind.call(t,e)}catch(a){return function(){return Function.prototype.apply.apply(t,[e,arguments])}}}function s(){console.log&&(console.log.apply?console.log.apply(console,arguments):Function.prototype.apply.apply(console.log,[console,arguments])),console.trace&&console.trace()}function o(r){return"debug"===r&&(r="log"),typeof console!==a&&("trace"===r&&t?s:void 0!==console[r]?n(console,r):void 0!==console.log?n(console,"log"):e)}function c(a,t){for(var n=0;n<r.length;n++){var s=r[n];this[s]=n<a?e:this.methodFactory(s,a,t)}this.log=this.debug}function l(e,t,r){return function(){typeof console!==a&&(c.call(this,t,r),this[e].apply(this,arguments))}}function i(e,a,t){return o(e)||l.apply(this,arguments)}function u(e,t,n){var s,o=this,l="loglevel";function u(){var e;if(typeof window!==a&&l){try{e=window.localStorage[l]}catch(e){}if(typeof e===a)try{var t=window.document.cookie,r=t.indexOf(encodeURIComponent(l)+"=");-1!==r&&(e=/^([^;]+)/.exec(t.slice(r))[1])}catch(e){}return void 0===o.levels[e]&&(e=void 0),e}}"string"==typeof e?l+=":"+e:"symbol"==typeof e&&(l=void 0),o.name=e,o.levels={TRACE:0,DEBUG:1,INFO:2,WARN:3,ERROR:4,SILENT:5},o.methodFactory=n||i,o.getLevel=function(){return s},o.setLevel=function(t,n){if("string"==typeof t&&void 0!==o.levels[t.toUpperCase()]&&(t=o.levels[t.toUpperCase()]),!("number"==typeof t&&t>=0&&t<=o.levels.SILENT))throw"log.setLevel() called with invalid level: "+t;if(s=t,!1!==n&&function(e){var t=(r[e]||"silent").toUpperCase();if(typeof window!==a&&l){try{return void(window.localStorage[l]=t)}catch(e){}try{window.document.cookie=encodeURIComponent(l)+"="+t+";"}catch(e){}}}(t),c.call(o,t,e),typeof console===a&&t<o.levels.SILENT)return"No console available for logging"},o.setDefaultLevel=function(e){u()||o.setLevel(e,!1)},o.enableAll=function(e){o.setLevel(o.levels.TRACE,e)},o.disableAll=function(e){o.setLevel(o.levels.SILENT,e)};var d=u();null==d&&(d=null==t?"WARN":t),o.setLevel(d,!1)}var d=new u,v={};d.getLogger=function(e){if("symbol"!=typeof e&&"string"!=typeof e||""===e)throw new TypeError("You must supply a name when creating a logger.");var a=v[e];return a||(a=v[e]=new u(e,d.getLevel(),d.methodFactory)),a};var b=typeof window!==a?window.log:void 0;return d.noConflict=function(){return typeof window!==a&&window.log===d&&(window.log=b),d},d.getLoggers=function(){return v},d.default=d,d})?r.call(a,t,a,e):r)||(e.exports=n)}()}},a={};function t(r){var n=a[r];if(void 0!==n)return n.exports;var s=a[r]={exports:{}};return e[r].call(s.exports,s,s.exports,t),s.exports}t.n=e=>{var a=e&&e.__esModule?()=>e.default:()=>e;return t.d(a,{a}),a},t.d=(e,a)=>{for(var r in a)t.o(a,r)&&!t.o(e,r)&&Object.defineProperty(e,r,{enumerable:!0,get:a[r]})},t.o=(e,a)=>Object.prototype.hasOwnProperty.call(e,a);var r={};return(()=>{"use strict";t.d(r,{DxfParser:()=>T});class e{constructor(e){this._pointer=0,this._eof=!1,this._data=e}next(){if(!this.hasNext())throw this._eof?new Error("Cannot call 'next' after EOF group has been read"):new Error("Unexpected end of input: EOF group not read before end of file. Ended on code "+this._data[this._pointer]);const e={code:parseInt(this._data[this._pointer])};return this._pointer++,e.value=a(e.code,this._data[this._pointer].trim()),this._pointer++,0===e.code&&"EOF"===e.value&&(this._eof=!0),this.lastReadGroup=e,e}peek(){if(!this.hasNext())throw this._eof?new Error("Cannot call 'next' after EOF group has been read"):new Error("Unexpected end of input: EOF group not read before end of file. Ended on code "+this._data[this._pointer]);const e={code:parseInt(this._data[this._pointer])};return e.value=a(e.code,this._data[this._pointer+1].trim()),e}rewind(e=1){this._pointer=this._pointer-2*e}hasNext(){return!(this._eof||this._pointer>this._data.length-2)}isEOF(){return this._eof}}function a(e,a){return e<=9?a:e>=10&&e<=59?parseFloat(a):e>=60&&e<=99?parseInt(a):e>=100&&e<=109?a:e>=110&&e<=149?parseFloat(a):e>=160&&e<=179?parseInt(a):e>=210&&e<=239?parseFloat(a):e>=270&&e<=289?parseInt(a):e>=290&&e<=299?function(e){if("0"===e)return!1;if("1"===e)return!0;throw TypeError("String '"+e+"' cannot be cast to Boolean type")}(a):e>=300&&e<=369?a:e>=370&&e<=389?parseInt(a):e>=390&&e<=399?a:e>=400&&e<=409?parseInt(a):e>=410&&e<=419?a:e>=420&&e<=429?parseInt(a):e>=430&&e<=439?a:e>=440&&e<=459?parseInt(a):e>=460&&e<=469?parseFloat(a):e>=470&&e<=481||999===e||e>=1e3&&e<=1009?a:e>=1010&&e<=1059?parseFloat(a):e>=1060&&e<=1071?parseInt(a):(console.log("WARNING: Group code does not have a defined type: %j",{code:e,value:a}),a)}const n=[0,16711680,16776960,65280,65535,255,16711935,16777215,8421504,12632256,16711680,16744319,13369344,13395558,10027008,10046540,8323072,8339263,4980736,4990502,16727808,16752511,13382400,13401958,10036736,10051404,8331008,8343359,4985600,4992806,16744192,16760703,13395456,13408614,10046464,10056268,8339200,8347455,4990464,4995366,16760576,16768895,13408512,13415014,10056192,10061132,8347392,8351551,4995328,4997670,16776960,16777087,13421568,13421670,10000384,10000460,8355584,8355647,5000192,5000230,12582656,14679935,10079232,11717734,7510016,8755276,6258432,7307071,3755008,4344870,8388352,12582783,6736896,10079334,5019648,7510092,4161280,6258495,2509824,3755046,4194048,10485631,3394560,8375398,2529280,6264908,2064128,5209919,1264640,3099686,65280,8388479,52224,6736998,38912,5019724,32512,4161343,19456,2509862,65343,8388511,52275,6737023,38950,5019743,32543,4161359,19475,2509871,65407,8388543,52326,6737049,38988,5019762,32575,4161375,19494,2509881,65471,8388575,52377,6737074,39026,5019781,32607,4161391,19513,2509890,65535,8388607,52428,6737100,39064,5019800,32639,4161407,19532,2509900,49151,8380415,39372,6730444,29336,5014936,24447,4157311,14668,2507340,32767,8372223,26316,6724044,19608,5010072,16255,4153215,9804,2505036,16383,8364031,13260,6717388,9880,5005208,8063,4149119,4940,2502476,255,8355839,204,6710988,152,5000344,127,4145023,76,2500172,4129023,10452991,3342540,8349388,2490520,6245528,2031743,5193599,1245260,3089996,8323327,12550143,6684876,10053324,4980888,7490712,4128895,6242175,2490444,3745356,12517631,14647295,10027212,11691724,7471256,8735896,6226047,7290751,3735628,4335180,16711935,16744447,13369548,13395660,9961624,9981080,8323199,8339327,4980812,4990540,16711871,16744415,13369497,13395634,9961586,9981061,8323167,8339311,4980793,4990530,16711807,16744383,13369446,13395609,9961548,9981042,8323135,8339295,4980774,4990521,16711743,16744351,13369395,13395583,9961510,9981023,8323103,8339279,4980755,4990511,3355443,5987163,8684676,11382189,14079702,16777215];function s(e){const a={};e.rewind();let t=e.next(),r=t.code;if(a.x=t.value,r+=10,t=e.next(),t.code!=r)throw new Error("Expected code for point value to be "+r+" but got "+t.code+".");return a.y=t.value,r+=10,t=e.next(),t.code!=r?(e.rewind(),a):(a.z=t.value,a)}function o(e,a,t){switch(a.code){case 0:e.type=a.value;break;case 5:e.handle=a.value;break;case 6:e.lineType=a.value;break;case 8:e.layer=a.value;break;case 48:e.lineTypeScale=a.value;break;case 60:e.visible=0===a.value;break;case 62:e.colorIndex=a.value,e.color=(r=Math.abs(a.value),n[r]);break;case 67:e.inPaperSpace=0!==a.value;break;case 100:break;case 101:for(;0!=a.code;)a=t.next();t.rewind();break;case 330:e.ownerHandle=a.value;break;case 347:e.materialObjectHandle=a.value;break;case 370:e.lineweight=a.value;break;case 420:e.color=a.value;break;case 1e3:e.extendedData=e.extendedData||{},e.extendedData.customStrings=e.extendedData.customStrings||[],e.extendedData.customStrings.push(a.value);break;case 1001:e.extendedData=e.extendedData||{},e.extendedData.applicationName=a.value;break;default:return!1}var r;return!0}class c{constructor(){this.ForEntityName="3DFACE"}parseEntity(e,a){const t={type:a.value,vertices:[]};for(a=e.next();!e.isEOF()&&0!==a.code;){switch(a.code){case 70:t.shape=1==(1&a.value),t.hasContinuousLinetypePattern=128==(128&a.value);break;case 10:t.vertices=l(e,a),a=e.lastReadGroup;break;default:o(t,a,e)}a=e.next()}return t}}function l(e,a){var t=[],r=!1,n=!1;for(let o=0;o<=4;o++){for(var s={};!e.isEOF()&&0!==a.code&&!n;){switch(a.code){case 10:case 11:case 12:case 13:if(r){n=!0;continue}s.x=a.value,r=!0;break;case 20:case 21:case 22:case 23:s.y=a.value;break;case 30:case 31:case 32:case 33:s.z=a.value;break;default:return t}a=e.next()}t.push(s),r=!1,n=!1}return e.rewind(),t}class i{constructor(){this.ForEntityName="ARC"}parseEntity(e,a){const t={type:a.value};for(a=e.next();!e.isEOF()&&0!==a.code;){switch(a.code){case 10:t.center=s(e);break;case 40:t.radius=a.value;break;case 50:t.startAngle=Math.PI/180*a.value;break;case 51:t.endAngle=Math.PI/180*a.value,t.angleLength=t.endAngle-t.startAngle;break;case 210:t.extrusionDirectionX=a.value;break;case 220:t.extrusionDirectionY=a.value;break;case 230:t.extrusionDirectionZ=a.value;break;default:o(t,a,e)}a=e.next()}return t}}class u{constructor(){this.ForEntityName="ATTDEF"}parseEntity(e,a){var t={type:a.value,scale:1,textStyle:"STANDARD"};for(a=e.next();!e.isEOF()&&0!==a.code;){switch(a.code){case 1:t.text=a.value;break;case 2:t.tag=a.value;break;case 3:t.prompt=a.value;break;case 7:t.textStyle=a.value;break;case 10:t.startPoint=s(e);break;case 11:t.endPoint=s(e);break;case 39:t.thickness=a.value;break;case 40:t.textHeight=a.value;break;case 41:t.scale=a.value;break;case 50:t.rotation=a.value;break;case 51:t.obliqueAngle=a.value;break;case 70:t.invisible=!!(1&a.value),t.constant=!!(2&a.value),t.verificationRequired=!!(4&a.value),t.preset=!!(8&a.value);break;case 71:t.backwards=!!(2&a.value),t.mirrored=!!(4&a.value);break;case 72:t.horizontalJustification=a.value;break;case 73:t.fieldLength=a.value;break;case 74:t.verticalJustification=a.value;break;case 100:break;case 210:t.extrusionDirectionX=a.value;break;case 220:t.extrusionDirectionY=a.value;break;case 230:t.extrusionDirectionZ=a.value;break;default:o(t,a,e)}a=e.next()}return t}}class d{constructor(){this.ForEntityName="CIRCLE"}parseEntity(e,a){const t={type:a.value};for(a=e.next();!e.isEOF()&&0!==a.code;){switch(a.code){case 10:t.center=s(e);break;case 40:t.radius=a.value;break;case 50:t.startAngle=Math.PI/180*a.value;break;case 51:const r=Math.PI/180*a.value;r<t.startAngle?t.angleLength=r+2*Math.PI-t.startAngle:t.angleLength=r-t.startAngle,t.endAngle=r;break;default:o(t,a,e)}a=e.next()}return t}}class v{constructor(){this.ForEntityName="DIMENSION"}parseEntity(e,a){const t={type:a.value};for(a=e.next();!e.isEOF()&&0!==a.code;){switch(a.code){case 2:t.block=a.value;break;case 10:t.anchorPoint=s(e);break;case 11:t.middleOfText=s(e);break;case 12:t.insertionPoint=s(e);break;case 13:t.linearOrAngularPoint1=s(e);break;case 14:t.linearOrAngularPoint2=s(e);break;case 15:t.diameterOrRadiusPoint=s(e);break;case 16:t.arcPoint=s(e);break;case 70:t.dimensionType=a.value;break;case 71:t.attachmentPoint=a.value;break;case 42:t.actualMeasurement=a.value;break;case 1:t.text=a.value;break;case 50:t.angle=a.value;break;default:o(t,a,e)}a=e.next()}return t}}class b{constructor(){this.ForEntityName="ELLIPSE"}parseEntity(e,a){const t={type:a.value};for(a=e.next();!e.isEOF()&&0!==a.code;){switch(a.code){case 10:t.center=s(e);break;case 11:t.majorAxisEndPoint=s(e);break;case 40:t.axisRatio=a.value;break;case 41:t.startAngle=a.value;break;case 42:t.endAngle=a.value;break;case 2:t.name=a.value;break;default:o(t,a,e)}a=e.next()}return t}}class p{constructor(){this.ForEntityName="INSERT"}parseEntity(e,a){const t={type:a.value};for(a=e.next();!e.isEOF()&&0!==a.code;){switch(a.code){case 2:t.name=a.value;break;case 41:t.xScale=a.value;break;case 42:t.yScale=a.value;break;case 43:t.zScale=a.value;break;case 10:t.position=s(e);break;case 50:t.rotation=a.value;break;case 70:t.columnCount=a.value;break;case 71:t.rowCount=a.value;break;case 44:t.columnSpacing=a.value;break;case 45:t.rowSpacing=a.value;break;case 210:t.extrusionDirection=s(e);break;default:o(t,a,e)}a=e.next()}return t}}class f{constructor(){this.ForEntityName="LINE"}parseEntity(e,a){const t={type:a.value,vertices:[]};for(a=e.next();!e.isEOF()&&0!==a.code;){switch(a.code){case 10:t.vertices.unshift(s(e));break;case 11:t.vertices.push(s(e));break;case 210:t.extrusionDirection=s(e);break;case 100:break;default:o(t,a,e)}a=e.next()}return t}}class k{constructor(){this.ForEntityName="LWPOLYLINE"}parseEntity(e,a){const t={type:a.value,vertices:[]};let r=0;for(a=e.next();!e.isEOF()&&0!==a.code;){switch(a.code){case 38:t.elevation=a.value;break;case 39:t.depth=a.value;break;case 70:t.shape=1==(1&a.value),t.hasContinuousLinetypePattern=128==(128&a.value);break;case 90:r=a.value;break;case 10:t.vertices=x(r,e);break;case 43:0!==a.value&&(t.width=a.value);break;case 210:t.extrusionDirectionX=a.value;break;case 220:t.extrusionDirectionY=a.value;break;case 230:t.extrusionDirectionZ=a.value;break;default:o(t,a,e)}a=e.next()}return t}}function x(e,a){if(!e||e<=0)throw Error("n must be greater than 0 verticies");const t=[];let r=!1,n=!1,s=a.lastReadGroup;for(let o=0;o<e;o++){const e={};for(;!a.isEOF()&&0!==s.code&&!n;){switch(s.code){case 10:if(r){n=!0;continue}e.x=s.value,r=!0;break;case 20:e.y=s.value;break;case 30:e.z=s.value;break;case 40:e.startWidth=s.value;break;case 41:e.endWidth=s.value;break;case 42:0!=s.value&&(e.bulge=s.value);break;default:return a.rewind(),r&&t.push(e),a.rewind(),t}s=a.next()}t.push(e),r=!1,n=!1}return a.rewind(),t}class h{constructor(){this.ForEntityName="MTEXT"}parseEntity(e,a){const t={type:a.value};for(a=e.next();!e.isEOF()&&0!==a.code;){switch(a.code){case 3:case 1:t.text?t.text+=a.value:t.text=a.value;break;case 10:t.position=s(e);break;case 11:t.directionVector=s(e);break;case 40:t.height=a.value;break;case 41:t.width=a.value;break;case 50:t.rotation=a.value;break;case 71:t.attachmentPoint=a.value;break;case 72:t.drawingDirection=a.value;break;default:o(t,a,e)}a=e.next()}return t}}class y{constructor(){this.ForEntityName="POINT"}parseEntity(e,a){const t={type:a.value};for(a=e.next();!e.isEOF()&&0!==a.code;){switch(a.code){case 10:t.position=s(e);break;case 39:t.thickness=a.value;break;case 210:t.extrusionDirection=s(e);break;case 100:break;default:o(t,a,e)}a=e.next()}return t}}class g{constructor(){this.ForEntityName="VERTEX"}parseEntity(e,a){var t={type:a.value};for(a=e.next();!e.isEOF()&&0!==a.code;){switch(a.code){case 10:t.x=a.value;break;case 20:t.y=a.value;break;case 30:t.z=a.value;break;case 40:case 41:break;case 42:0!=a.value&&(t.bulge=a.value);break;case 70:t.curveFittingVertex=0!=(1&a.value),t.curveFitTangent=0!=(2&a.value),t.splineVertex=0!=(8&a.value),t.splineControlPoint=0!=(16&a.value),t.threeDPolylineVertex=0!=(32&a.value),t.threeDPolylineMesh=0!=(64&a.value),t.polyfaceMeshVertex=0!=(128&a.value);break;case 50:break;case 71:t.faceA=a.value;break;case 72:t.faceB=a.value;break;case 73:t.faceC=a.value;break;case 74:t.faceD=a.value;break;default:o(t,a,e)}a=e.next()}return t}}class E{constructor(){this.ForEntityName="POLYLINE"}parseEntity(e,a){var t={type:a.value,vertices:[]};for(a=e.next();!e.isEOF()&&0!==a.code;){switch(a.code){case 10:case 20:case 30:break;case 39:t.thickness=a.value;break;case 40:case 41:break;case 70:t.shape=0!=(1&a.value),t.includesCurveFitVertices=0!=(2&a.value),t.includesSplineFitVertices=0!=(4&a.value),t.is3dPolyline=0!=(8&a.value),t.is3dPolygonMesh=0!=(16&a.value),t.is3dPolygonMeshClosed=0!=(32&a.value),t.isPolyfaceMesh=0!=(64&a.value),t.hasContinuousLinetypePattern=0!=(128&a.value);break;case 71:case 72:case 73:case 74:case 75:break;case 210:t.extrusionDirection=s(e);break;default:o(t,a,e)}a=e.next()}return t.vertices=function(e,a){const t=new g,r=[];for(;!e.isEOF();)if(0===a.code)if("VERTEX"===a.value)r.push(t.parseEntity(e,a)),a=e.lastReadGroup;else if("SEQEND"===a.value){w(e,a);break}return r}(e,a),t}}function w(e,a){const t={type:a.value};for(a=e.next();!e.isEOF()&&0!=a.code;)o(t,a,e),a=e.next();return t}class m{constructor(){this.ForEntityName="SOLID"}parseEntity(e,a){const t={type:a.value,points:[]};for(a=e.next();!e.isEOF()&&0!==a.code;){switch(a.code){case 10:t.points[0]=s(e);break;case 11:t.points[1]=s(e);break;case 12:t.points[2]=s(e);break;case 13:t.points[3]=s(e);break;case 210:t.extrusionDirection=s(e);break;default:o(t,a,e)}a=e.next()}return t}}class F{constructor(){this.ForEntityName="SPLINE"}parseEntity(e,a){const t={type:a.value};for(a=e.next();!e.isEOF()&&0!==a.code;){switch(a.code){case 10:t.controlPoints||(t.controlPoints=[]),t.controlPoints.push(s(e));break;case 11:t.fitPoints||(t.fitPoints=[]),t.fitPoints.push(s(e));break;case 12:t.startTangent=s(e);break;case 13:t.endTangent=s(e);break;case 40:t.knotValues||(t.knotValues=[]),t.knotValues.push(a.value);break;case 70:0!=(1&a.value)&&(t.closed=!0),0!=(2&a.value)&&(t.periodic=!0),0!=(4&a.value)&&(t.rational=!0),0!=(8&a.value)&&(t.planar=!0),0!=(16&a.value)&&(t.planar=!0,t.linear=!0);break;case 71:t.degreeOfSplineCurve=a.value;break;case 72:t.numberOfKnots=a.value;break;case 73:t.numberOfControlPoints=a.value;break;case 74:t.numberOfFitPoints=a.value;break;case 210:t.normalVector=s(e);break;default:o(t,a,e)}a=e.next()}return t}}class P{constructor(){this.ForEntityName="TEXT"}parseEntity(e,a){const t={type:a.value};for(a=e.next();!e.isEOF()&&0!==a.code;){switch(a.code){case 10:t.startPoint=s(e);break;case 11:t.endPoint=s(e);break;case 40:t.textHeight=a.value;break;case 41:t.xScale=a.value;break;case 50:t.rotation=a.value;break;case 1:t.text=a.value;break;case 72:t.halign=a.value;break;case 73:t.valign=a.value;break;default:o(t,a,e)}a=e.next()}return t}}var N=t(43),O=t.n(N);O().setLevel("error");class T{constructor(){var e;this._entityHandlers={},(e=this).registerEntityHandler(c),e.registerEntityHandler(i),e.registerEntityHandler(u),e.registerEntityHandler(d),e.registerEntityHandler(v),e.registerEntityHandler(b),e.registerEntityHandler(p),e.registerEntityHandler(f),e.registerEntityHandler(k),e.registerEntityHandler(h),e.registerEntityHandler(y),e.registerEntityHandler(E),e.registerEntityHandler(m),e.registerEntityHandler(F),e.registerEntityHandler(P)}parse(e){return"string"==typeof e?this._parse(e):(console.error("Cannot read dxf source of type `"+typeof e),null)}registerEntityHandler(e){const a=new e;this._entityHandlers[a.ForEntityName]=a}parseSync(e){return this.parse(e)}parseStream(e){let a="";const t=this;return new Promise(((r,n)=>{e.on("data",(e=>{a+=e})),e.on("end",(()=>{try{r(t._parse(a))}catch(e){n(e)}})),e.on("error",(e=>{n(e)}))}))}_parse(a){const t={};let r=0;const s=a.split(/\r\n|\r|\n/g),o=new e(s);if(!o.hasNext())throw Error("Empty file");const c=this;let l;function i(){let e=null,a=null;const t={};for(l=o.next();;){if(L(l,0,"ENDSEC")){e&&(t[e]=a);break}9===l.code?(e&&(t[e]=a),e=l.value):10===l.code?a={x:l.value}:20===l.code?a.y=l.value:30===l.code?a.z=l.value:a=l.value,l=o.next()}return l=o.next(),t}function u(){const e={};for(l=o.next();"EOF"!==l.value&&!L(l,0,"ENDSEC");)if(L(l,0,"BLOCK")){O().debug("block {");const a=d();O().debug("}"),h(a),a.name?e[a.name]=a:O().error('block with handle "'+a.handle+'" is missing a name.')}else S(l),l=o.next();return e}function d(){const e={};for(l=o.next();"EOF"!==l.value;){switch(l.code){case 1:e.xrefPath=l.value,l=o.next();break;case 2:e.name=l.value,l=o.next();break;case 3:e.name2=l.value,l=o.next();break;case 5:e.handle=l.value,l=o.next();break;case 8:e.layer=l.value,l=o.next();break;case 10:e.position=x(l),l=o.next();break;case 67:e.paperSpace=!(!l.value||1!=l.value),l=o.next();break;case 70:0!=l.value&&(e.type=l.value),l=o.next();break;case 100:l=o.next();break;case 330:e.ownerHandle=l.value,l=o.next();break;case 0:if("ENDBLK"==l.value)break;e.entities=k(!0);break;default:S(l),l=o.next()}if(L(l,0,"ENDBLK")){l=o.next();break}}return e}function v(){const e={};for(l=o.next();"EOF"!==l.value&&!L(l,0,"ENDSEC");)L(l,0,"TABLE")?(l=o.next(),f[l.value]?(O().debug(l.value+" Table {"),e[f[l.value].tableName]=p(l),O().debug("}")):O().debug("Unhandled Table "+l.value)):l=o.next();return l=o.next(),e}const b="ENDTAB";function p(e){const a=f[e.value],t={};let r=0;for(l=o.next();!L(l,0,b);)switch(l.code){case 5:t.handle=l.value,l=o.next();break;case 330:t.ownerHandle=l.value,l=o.next();break;case 100:"AcDbSymbolTable"===l.value||S(l),l=o.next();break;case 70:r=l.value,l=o.next();break;case 0:l.value===a.dxfSymbolName?t[a.tableRecordsProperty]=a.parseTableRecords():(S(l),l=o.next());break;default:S(l),l=o.next()}const n=t[a.tableRecordsProperty];if(n){let e=n.constructor===Array?n.length:"object"==typeof n?Object.keys(n).length:void 0;r!==e&&O().warn("Parsed "+e+" "+a.dxfSymbolName+"'s but expected "+r)}return l=o.next(),t}const f={VPORT:{tableRecordsProperty:"viewPorts",tableName:"viewPort",dxfSymbolName:"VPORT",parseTableRecords:function(){const e=[];let a={};for(O().debug("ViewPort {"),l=o.next();!L(l,0,b);)switch(l.code){case 2:a.name=l.value,l=o.next();break;case 10:a.lowerLeftCorner=x(l),l=o.next();break;case 11:a.upperRightCorner=x(l),l=o.next();break;case 12:a.center=x(l),l=o.next();break;case 13:a.snapBasePoint=x(l),l=o.next();break;case 14:a.snapSpacing=x(l),l=o.next();break;case 15:a.gridSpacing=x(l),l=o.next();break;case 16:a.viewDirectionFromTarget=x(l),l=o.next();break;case 17:a.viewTarget=x(l),l=o.next();break;case 42:a.lensLength=l.value,l=o.next();break;case 43:a.frontClippingPlane=l.value,l=o.next();break;case 44:a.backClippingPlane=l.value,l=o.next();break;case 45:a.viewHeight=l.value,l=o.next();break;case 50:a.snapRotationAngle=l.value,l=o.next();break;case 51:a.viewTwistAngle=l.value,l=o.next();break;case 79:a.orthographicType=l.value,l=o.next();break;case 110:a.ucsOrigin=x(l),l=o.next();break;case 111:a.ucsXAxis=x(l),l=o.next();break;case 112:a.ucsYAxis=x(l),l=o.next();break;case 110:a.ucsOrigin=x(l),l=o.next();break;case 281:a.renderMode=l.value,l=o.next();break;case 281:a.defaultLightingType=l.value,l=o.next();break;case 292:a.defaultLightingOn=l.value,l=o.next();break;case 330:a.ownerHandle=l.value,l=o.next();break;case 63:case 421:case 431:a.ambientColor=l.value,l=o.next();break;case 0:"VPORT"===l.value&&(O().debug("}"),e.push(a),O().debug("ViewPort {"),a={},l=o.next());break;default:S(l),l=o.next()}return O().debug("}"),e.push(a),e}},LTYPE:{tableRecordsProperty:"lineTypes",tableName:"lineType",dxfSymbolName:"LTYPE",parseTableRecords:function(){const e={};let a,t={},r=0;for(O().debug("LType {"),l=o.next();!L(l,0,"ENDTAB");)switch(l.code){case 2:t.name=l.value,a=l.value,l=o.next();break;case 3:t.description=l.value,l=o.next();break;case 73:r=l.value,r>0&&(t.pattern=[]),l=o.next();break;case 40:t.patternLength=l.value,l=o.next();break;case 49:t.pattern.push(l.value),l=o.next();break;case 0:O().debug("}"),r>0&&r!==t.pattern.length&&O().warn("lengths do not match on LTYPE pattern"),e[a]=t,t={},O().debug("LType {"),l=o.next();break;default:l=o.next()}return O().debug("}"),e[a]=t,e}},LAYER:{tableRecordsProperty:"layers",tableName:"layer",dxfSymbolName:"LAYER",parseTableRecords:function(){const e={};let a,t={};for(O().debug("Layer {"),l=o.next();!L(l,0,"ENDTAB");)switch(l.code){case 2:t.name=l.value,a=l.value,l=o.next();break;case 62:t.visible=l.value>=0,t.colorIndex=Math.abs(l.value),t.color=(r=t.colorIndex,n[r]),l=o.next();break;case 70:t.frozen=0!=(1&l.value)||0!=(2&l.value),l=o.next();break;case 0:"LAYER"===l.value&&(O().debug("}"),e[a]=t,O().debug("Layer {"),t={},a=void 0,l=o.next());break;default:S(l),l=o.next()}var r;return O().debug("}"),e[a]=t,e}}};function k(e){const a=[],t=e?"ENDBLK":"ENDSEC";for(e||(l=o.next());;)if(0===l.code){if(l.value===t)break;const e=c._entityHandlers[l.value];if(null==e){O().warn("Unhandled entity "+l.value),l=o.next();continue}{O().debug(l.value+" {");const t=e.parseEntity(o,l);l=o.lastReadGroup,O().debug("}"),h(t),a.push(t)}}else l=o.next();return"ENDSEC"==t&&(l=o.next()),a}function x(e){const a={};let t=e.code;if(a.x=e.value,t+=10,(e=o.next()).code!=t)throw new Error("Expected code for point value to be "+t+" but got "+e.code+".");return a.y=e.value,t+=10,(e=o.next()).code!=t?(o.rewind(),a):(a.z=e.value,a)}function h(e){if(!e)throw new TypeError("entity cannot be undefined or null");e.handle||(e.handle=r++)}return function(){for(l=o.next();!o.isEOF();)if(0===l.code&&"SECTION"===l.value){if(l=o.next(),2!==l.code){console.error("Unexpected code %s after 0:SECTION",D(l)),l=o.next();continue}"HEADER"===l.value?(O().debug("> HEADER"),t.header=i(),O().debug("<")):"BLOCKS"===l.value?(O().debug("> BLOCKS"),t.blocks=u(),O().debug("<")):"ENTITIES"===l.value?(O().debug("> ENTITIES"),t.entities=k(!1),O().debug("<")):"TABLES"===l.value?(O().debug("> TABLES"),t.tables=v(),O().debug("<")):"EOF"===l.value?O().debug("EOF"):O().warn("Skipping section '%s'",l.value)}else l=o.next()}(),t}}function L(e,a,t){return e.code===a&&e.value===t}function S(e){O().debug("unhandled group "+D(e))}function D(e){return e.code+":"+e.value}})(),r.DxfParser})()}));
+!function(e,a){"object"==typeof exports&&"object"==typeof module?module.exports=a():"function"==typeof define&&define.amd?define([],a):"object"==typeof exports?exports.DxfParser=a():e.DxfParser=a()}("undefined"!=typeof self?self:this,(function(){return(()=>{var e={43:function(e,a,t){var r,n;!function(s,o){"use strict";void 0===(n="function"==typeof(r=function(){var e=function(){},a="undefined",t=typeof window!==a&&typeof window.navigator!==a&&/Trident\/|MSIE /.test(window.navigator.userAgent),r=["trace","debug","info","warn","error"];function n(e,a){var t=e[a];if("function"==typeof t.bind)return t.bind(e);try{return Function.prototype.bind.call(t,e)}catch(a){return function(){return Function.prototype.apply.apply(t,[e,arguments])}}}function s(){console.log&&(console.log.apply?console.log.apply(console,arguments):Function.prototype.apply.apply(console.log,[console,arguments])),console.trace&&console.trace()}function o(r){return"debug"===r&&(r="log"),typeof console!==a&&("trace"===r&&t?s:void 0!==console[r]?n(console,r):void 0!==console.log?n(console,"log"):e)}function c(a,t){for(var n=0;n<r.length;n++){var s=r[n];this[s]=n<a?e:this.methodFactory(s,a,t)}this.log=this.debug}function l(e,t,r){return function(){typeof console!==a&&(c.call(this,t,r),this[e].apply(this,arguments))}}function i(e,a,t){return o(e)||l.apply(this,arguments)}function u(e,t,n){var s,o=this,l="loglevel";function u(){var e;if(typeof window!==a&&l){try{e=window.localStorage[l]}catch(e){}if(typeof e===a)try{var t=window.document.cookie,r=t.indexOf(encodeURIComponent(l)+"=");-1!==r&&(e=/^([^;]+)/.exec(t.slice(r))[1])}catch(e){}return void 0===o.levels[e]&&(e=void 0),e}}"string"==typeof e?l+=":"+e:"symbol"==typeof e&&(l=void 0),o.name=e,o.levels={TRACE:0,DEBUG:1,INFO:2,WARN:3,ERROR:4,SILENT:5},o.methodFactory=n||i,o.getLevel=function(){return s},o.setLevel=function(t,n){if("string"==typeof t&&void 0!==o.levels[t.toUpperCase()]&&(t=o.levels[t.toUpperCase()]),!("number"==typeof t&&t>=0&&t<=o.levels.SILENT))throw"log.setLevel() called with invalid level: "+t;if(s=t,!1!==n&&function(e){var t=(r[e]||"silent").toUpperCase();if(typeof window!==a&&l){try{return void(window.localStorage[l]=t)}catch(e){}try{window.document.cookie=encodeURIComponent(l)+"="+t+";"}catch(e){}}}(t),c.call(o,t,e),typeof console===a&&t<o.levels.SILENT)return"No console available for logging"},o.setDefaultLevel=function(e){u()||o.setLevel(e,!1)},o.enableAll=function(e){o.setLevel(o.levels.TRACE,e)},o.disableAll=function(e){o.setLevel(o.levels.SILENT,e)};var d=u();null==d&&(d=null==t?"WARN":t),o.setLevel(d,!1)}var d=new u,v={};d.getLogger=function(e){if("symbol"!=typeof e&&"string"!=typeof e||""===e)throw new TypeError("You must supply a name when creating a logger.");var a=v[e];return a||(a=v[e]=new u(e,d.getLevel(),d.methodFactory)),a};var b=typeof window!==a?window.log:void 0;return d.noConflict=function(){return typeof window!==a&&window.log===d&&(window.log=b),d},d.getLoggers=function(){return v},d.default=d,d})?r.call(a,t,a,e):r)||(e.exports=n)}()}},a={};function t(r){var n=a[r];if(void 0!==n)return n.exports;var s=a[r]={exports:{}};return e[r].call(s.exports,s,s.exports,t),s.exports}t.n=e=>{var a=e&&e.__esModule?()=>e.default:()=>e;return t.d(a,{a}),a},t.d=(e,a)=>{for(var r in a)t.o(a,r)&&!t.o(e,r)&&Object.defineProperty(e,r,{enumerable:!0,get:a[r]})},t.o=(e,a)=>Object.prototype.hasOwnProperty.call(e,a);var r={};return(()=>{"use strict";t.d(r,{DxfParser:()=>T});class e{constructor(e){this._pointer=0,this._eof=!1,this._data=e}next(){if(!this.hasNext())throw this._eof?new Error("Cannot call 'next' after EOF group has been read"):new Error("Unexpected end of input: EOF group not read before end of file. Ended on code "+this._data[this._pointer]);const e={code:parseInt(this._data[this._pointer])};return this._pointer++,e.value=a(e.code,this._data[this._pointer].trim()),this._pointer++,0===e.code&&"EOF"===e.value&&(this._eof=!0),this.lastReadGroup=e,e}peek(){if(!this.hasNext())throw this._eof?new Error("Cannot call 'next' after EOF group has been read"):new Error("Unexpected end of input: EOF group not read before end of file. Ended on code "+this._data[this._pointer]);const e={code:parseInt(this._data[this._pointer])};return e.value=a(e.code,this._data[this._pointer+1].trim()),e}rewind(e=1){this._pointer=this._pointer-2*e}hasNext(){return!(this._eof||this._pointer>this._data.length-2)}isEOF(){return this._eof}}function a(e,a){return e<=9?a:e>=10&&e<=59?parseFloat(a):e>=60&&e<=99?parseInt(a):e>=100&&e<=109?a:e>=110&&e<=149?parseFloat(a):e>=160&&e<=179?parseInt(a):e>=210&&e<=239?parseFloat(a):e>=270&&e<=289?parseInt(a):e>=290&&e<=299?function(e){if("0"===e)return!1;if("1"===e)return!0;throw TypeError("String '"+e+"' cannot be cast to Boolean type")}(a):e>=300&&e<=369?a:e>=370&&e<=389?parseInt(a):e>=390&&e<=399?a:e>=400&&e<=409?parseInt(a):e>=410&&e<=419?a:e>=420&&e<=429?parseInt(a):e>=430&&e<=439?a:e>=440&&e<=459?parseInt(a):e>=460&&e<=469?parseFloat(a):e>=470&&e<=481||999===e||e>=1e3&&e<=1009?a:e>=1010&&e<=1059?parseFloat(a):e>=1060&&e<=1071?parseInt(a):(console.log("WARNING: Group code does not have a defined type: %j",{code:e,value:a}),a)}const n=[0,16711680,16776960,65280,65535,255,16711935,16777215,8421504,12632256,16711680,16744319,13369344,13395558,10027008,10046540,8323072,8339263,4980736,4990502,16727808,16752511,13382400,13401958,10036736,10051404,8331008,8343359,4985600,4992806,16744192,16760703,13395456,13408614,10046464,10056268,8339200,8347455,4990464,4995366,16760576,16768895,13408512,13415014,10056192,10061132,8347392,8351551,4995328,4997670,16776960,16777087,13421568,13421670,10000384,10000460,8355584,8355647,5000192,5000230,12582656,14679935,10079232,11717734,7510016,8755276,6258432,7307071,3755008,4344870,8388352,12582783,6736896,10079334,5019648,7510092,4161280,6258495,2509824,3755046,4194048,10485631,3394560,8375398,2529280,6264908,2064128,5209919,1264640,3099686,65280,8388479,52224,6736998,38912,5019724,32512,4161343,19456,2509862,65343,8388511,52275,6737023,38950,5019743,32543,4161359,19475,2509871,65407,8388543,52326,6737049,38988,5019762,32575,4161375,19494,2509881,65471,8388575,52377,6737074,39026,5019781,32607,4161391,19513,2509890,65535,8388607,52428,6737100,39064,5019800,32639,4161407,19532,2509900,49151,8380415,39372,6730444,29336,5014936,24447,4157311,14668,2507340,32767,8372223,26316,6724044,19608,5010072,16255,4153215,9804,2505036,16383,8364031,13260,6717388,9880,5005208,8063,4149119,4940,2502476,255,8355839,204,6710988,152,5000344,127,4145023,76,2500172,4129023,10452991,3342540,8349388,2490520,6245528,2031743,5193599,1245260,3089996,8323327,12550143,6684876,10053324,4980888,7490712,4128895,6242175,2490444,3745356,12517631,14647295,10027212,11691724,7471256,8735896,6226047,7290751,3735628,4335180,16711935,16744447,13369548,13395660,9961624,9981080,8323199,8339327,4980812,4990540,16711871,16744415,13369497,13395634,9961586,9981061,8323167,8339311,4980793,4990530,16711807,16744383,13369446,13395609,9961548,9981042,8323135,8339295,4980774,4990521,16711743,16744351,13369395,13395583,9961510,9981023,8323103,8339279,4980755,4990511,3355443,5987163,8684676,11382189,14079702,16777215];function s(e){const a={};e.rewind();let t=e.next(),r=t.code;if(a.x=t.value,r+=10,t=e.next(),t.code!=r)throw new Error("Expected code for point value to be "+r+" but got "+t.code+".");return a.y=t.value,r+=10,t=e.next(),t.code!=r?(e.rewind(),a):(a.z=t.value,a)}function o(e,a,t){switch(a.code){case 0:e.type=a.value;break;case 5:e.handle=a.value;break;case 6:e.lineType=a.value;break;case 8:e.layer=a.value;break;case 48:e.lineTypeScale=a.value;break;case 60:e.visible=0===a.value;break;case 62:e.colorIndex=a.value,e.color=(r=Math.abs(a.value),n[r]);break;case 67:e.inPaperSpace=0!==a.value;break;case 100:break;case 101:for(;0!=a.code;)a=t.next();t.rewind();break;case 330:e.ownerHandle=a.value;break;case 347:e.materialObjectHandle=a.value;break;case 370:e.lineweight=a.value;break;case 420:e.color=a.value;break;case 1e3:e.extendedData=e.extendedData||{},e.extendedData.customStrings=e.extendedData.customStrings||[],e.extendedData.customStrings.push(a.value);break;case 1001:e.extendedData=e.extendedData||{},e.extendedData.applicationName=a.value;break;default:return!1}var r;return!0}class c{constructor(){this.ForEntityName="3DFACE"}parseEntity(e,a){const t={type:a.value,vertices:[]};for(a=e.next();!e.isEOF()&&0!==a.code;){switch(a.code){case 70:t.shape=1==(1&a.value),t.hasContinuousLinetypePattern=128==(128&a.value);break;case 10:t.vertices=l(e,a),a=e.lastReadGroup;break;default:o(t,a,e)}a=e.next()}return t}}function l(e,a){var t=[],r=!1,n=!1;for(let o=0;o<=4;o++){for(var s={};!e.isEOF()&&0!==a.code&&!n;){switch(a.code){case 10:case 11:case 12:case 13:if(r){n=!0;continue}s.x=a.value,r=!0;break;case 20:case 21:case 22:case 23:s.y=a.value;break;case 30:case 31:case 32:case 33:s.z=a.value;break;default:return t}a=e.next()}t.push(s),r=!1,n=!1}return e.rewind(),t}class i{constructor(){this.ForEntityName="ARC"}parseEntity(e,a){const t={type:a.value};for(a=e.next();!e.isEOF()&&0!==a.code;){switch(a.code){case 10:t.center=s(e);break;case 40:t.radius=a.value;break;case 50:t.startAngle=Math.PI/180*a.value;break;case 51:t.endAngle=Math.PI/180*a.value,t.angleLength=t.endAngle-t.startAngle;break;case 210:t.extrusionDirectionX=a.value;break;case 220:t.extrusionDirectionY=a.value;break;case 230:t.extrusionDirectionZ=a.value;break;default:o(t,a,e)}a=e.next()}return t}}class u{constructor(){this.ForEntityName="ATTDEF"}parseEntity(e,a){var t={type:a.value,scale:1,textStyle:"STANDARD"};for(a=e.next();!e.isEOF()&&0!==a.code;){switch(a.code){case 1:t.text=a.value;break;case 2:t.tag=a.value;break;case 3:t.prompt=a.value;break;case 7:t.textStyle=a.value;break;case 10:t.startPoint=s(e);break;case 11:t.endPoint=s(e);break;case 39:t.thickness=a.value;break;case 40:t.textHeight=a.value;break;case 41:t.scale=a.value;break;case 50:t.rotation=a.value;break;case 51:t.obliqueAngle=a.value;break;case 70:t.invisible=!!(1&a.value),t.constant=!!(2&a.value),t.verificationRequired=!!(4&a.value),t.preset=!!(8&a.value);break;case 71:t.backwards=!!(2&a.value),t.mirrored=!!(4&a.value);break;case 72:t.horizontalJustification=a.value;break;case 73:t.fieldLength=a.value;break;case 74:t.verticalJustification=a.value;break;case 100:break;case 210:t.extrusionDirectionX=a.value;break;case 220:t.extrusionDirectionY=a.value;break;case 230:t.extrusionDirectionZ=a.value;break;default:o(t,a,e)}a=e.next()}return t}}class d{constructor(){this.ForEntityName="CIRCLE"}parseEntity(e,a){const t={type:a.value};for(a=e.next();!e.isEOF()&&0!==a.code;){switch(a.code){case 10:t.center=s(e);break;case 40:t.radius=a.value;break;case 50:t.startAngle=Math.PI/180*a.value;break;case 51:const r=Math.PI/180*a.value;r<t.startAngle?t.angleLength=r+2*Math.PI-t.startAngle:t.angleLength=r-t.startAngle,t.endAngle=r;break;default:o(t,a,e)}a=e.next()}return t}}class v{constructor(){this.ForEntityName="DIMENSION"}parseEntity(e,a){const t={type:a.value};for(a=e.next();!e.isEOF()&&0!==a.code;){switch(a.code){case 2:t.block=a.value;break;case 10:t.anchorPoint=s(e);break;case 11:t.middleOfText=s(e);break;case 12:t.insertionPoint=s(e);break;case 13:t.linearOrAngularPoint1=s(e);break;case 14:t.linearOrAngularPoint2=s(e);break;case 15:t.diameterOrRadiusPoint=s(e);break;case 16:t.arcPoint=s(e);break;case 70:t.dimensionType=a.value;break;case 71:t.attachmentPoint=a.value;break;case 42:t.actualMeasurement=a.value;break;case 1:t.text=a.value;break;case 50:t.angle=a.value;break;default:o(t,a,e)}a=e.next()}return t}}class b{constructor(){this.ForEntityName="ELLIPSE"}parseEntity(e,a){const t={type:a.value};for(a=e.next();!e.isEOF()&&0!==a.code;){switch(a.code){case 10:t.center=s(e);break;case 11:t.majorAxisEndPoint=s(e);break;case 40:t.axisRatio=a.value;break;case 41:t.startAngle=a.value;break;case 42:t.endAngle=a.value;break;case 2:t.name=a.value;break;default:o(t,a,e)}a=e.next()}return t}}class p{constructor(){this.ForEntityName="INSERT"}parseEntity(e,a){const t={type:a.value};for(a=e.next();!e.isEOF()&&0!==a.code;){switch(a.code){case 2:t.name=a.value;break;case 41:t.xScale=a.value;break;case 42:t.yScale=a.value;break;case 43:t.zScale=a.value;break;case 10:t.position=s(e);break;case 50:t.rotation=a.value;break;case 70:t.columnCount=a.value;break;case 71:t.rowCount=a.value;break;case 44:t.columnSpacing=a.value;break;case 45:t.rowSpacing=a.value;break;case 210:t.extrusionDirection=s(e);break;default:o(t,a,e)}a=e.next()}return t}}class f{constructor(){this.ForEntityName="LINE"}parseEntity(e,a){const t={type:a.value,vertices:[]};for(a=e.next();!e.isEOF()&&0!==a.code;){switch(a.code){case 10:t.vertices.unshift(s(e));break;case 11:t.vertices.push(s(e));break;case 210:t.extrusionDirection=s(e);break;case 100:break;default:o(t,a,e)}a=e.next()}return t}}class k{constructor(){this.ForEntityName="LWPOLYLINE"}parseEntity(e,a){const t={type:a.value,vertices:[]};let r=0;for(a=e.next();!e.isEOF()&&0!==a.code;){switch(a.code){case 38:t.elevation=a.value;break;case 39:t.depth=a.value;break;case 70:t.shape=1==(1&a.value),t.hasContinuousLinetypePattern=128==(128&a.value);break;case 90:r=a.value;break;case 10:t.vertices=x(r,e);break;case 43:0!==a.value&&(t.width=a.value);break;case 210:t.extrusionDirectionX=a.value;break;case 220:t.extrusionDirectionY=a.value;break;case 230:t.extrusionDirectionZ=a.value;break;default:o(t,a,e)}a=e.next()}return t}}function x(e,a){if(!e||e<=0)throw Error("n must be greater than 0 verticies");const t=[];let r=!1,n=!1,s=a.lastReadGroup;for(let o=0;o<e;o++){const e={};for(;!a.isEOF()&&0!==s.code&&!n;){switch(s.code){case 10:if(r){n=!0;continue}e.x=s.value,r=!0;break;case 20:e.y=s.value;break;case 30:e.z=s.value;break;case 40:e.startWidth=s.value;break;case 41:e.endWidth=s.value;break;case 42:0!=s.value&&(e.bulge=s.value);break;default:return a.rewind(),r&&t.push(e),a.rewind(),t}s=a.next()}t.push(e),r=!1,n=!1}return a.rewind(),t}class h{constructor(){this.ForEntityName="MTEXT"}parseEntity(e,a){const t={type:a.value};for(a=e.next();!e.isEOF()&&0!==a.code;){switch(a.code){case 3:case 1:t.text?t.text+=a.value:t.text=a.value;break;case 10:t.position=s(e);break;case 11:t.directionVector=s(e);break;case 40:t.height=a.value;break;case 41:t.width=a.value;break;case 50:t.rotation=a.value;break;case 71:t.attachmentPoint=a.value;break;case 72:t.drawingDirection=a.value;break;default:o(t,a,e)}a=e.next()}return t}}class y{constructor(){this.ForEntityName="POINT"}parseEntity(e,a){const t={type:a.value};for(a=e.next();!e.isEOF()&&0!==a.code;){switch(a.code){case 10:t.position=s(e);break;case 39:t.thickness=a.value;break;case 210:t.extrusionDirection=s(e);break;case 100:break;default:o(t,a,e)}a=e.next()}return t}}class g{constructor(){this.ForEntityName="VERTEX"}parseEntity(e,a){var t={type:a.value};for(a=e.next();!e.isEOF()&&0!==a.code;){switch(a.code){case 10:t.x=a.value;break;case 20:t.y=a.value;break;case 30:t.z=a.value;break;case 40:case 41:break;case 42:0!=a.value&&(t.bulge=a.value);break;case 70:t.curveFittingVertex=0!=(1&a.value),t.curveFitTangent=0!=(2&a.value),t.splineVertex=0!=(8&a.value),t.splineControlPoint=0!=(16&a.value),t.threeDPolylineVertex=0!=(32&a.value),t.threeDPolylineMesh=0!=(64&a.value),t.polyfaceMeshVertex=0!=(128&a.value);break;case 50:break;case 71:t.faceA=a.value;break;case 72:t.faceB=a.value;break;case 73:t.faceC=a.value;break;case 74:t.faceD=a.value;break;default:o(t,a,e)}a=e.next()}return t}}class E{constructor(){this.ForEntityName="POLYLINE"}parseEntity(e,a){var t={type:a.value,vertices:[]};for(a=e.next();!e.isEOF()&&0!==a.code;){switch(a.code){case 10:case 20:case 30:break;case 39:t.thickness=a.value;break;case 40:case 41:break;case 70:t.shape=0!=(1&a.value),t.includesCurveFitVertices=0!=(2&a.value),t.includesSplineFitVertices=0!=(4&a.value),t.is3dPolyline=0!=(8&a.value),t.is3dPolygonMesh=0!=(16&a.value),t.is3dPolygonMeshClosed=0!=(32&a.value),t.isPolyfaceMesh=0!=(64&a.value),t.hasContinuousLinetypePattern=0!=(128&a.value);break;case 71:case 72:case 73:case 74:case 75:break;case 210:t.extrusionDirection=s(e);break;default:o(t,a,e)}a=e.next()}return t.vertices=function(e,a){const t=new g,r=[];for(;!e.isEOF();)if(0===a.code)if("VERTEX"===a.value)r.push(t.parseEntity(e,a)),a=e.lastReadGroup;else if("SEQEND"===a.value){w(e,a);break}return r}(e,a),t}}function w(e,a){const t={type:a.value};for(a=e.next();!e.isEOF()&&0!=a.code;)o(t,a,e),a=e.next();return t}class m{constructor(){this.ForEntityName="SOLID"}parseEntity(e,a){const t={type:a.value,points:[]};for(a=e.next();!e.isEOF()&&0!==a.code;){switch(a.code){case 10:t.points[0]=s(e);break;case 11:t.points[1]=s(e);break;case 12:t.points[2]=s(e);break;case 13:t.points[3]=s(e);break;case 210:t.extrusionDirection=s(e);break;default:o(t,a,e)}a=e.next()}return t}}class F{constructor(){this.ForEntityName="SPLINE"}parseEntity(e,a){const t={type:a.value};for(a=e.next();!e.isEOF()&&0!==a.code;){switch(a.code){case 10:t.controlPoints||(t.controlPoints=[]),t.controlPoints.push(s(e));break;case 11:t.fitPoints||(t.fitPoints=[]),t.fitPoints.push(s(e));break;case 12:t.startTangent=s(e);break;case 13:t.endTangent=s(e);break;case 40:t.knotValues||(t.knotValues=[]),t.knotValues.push(a.value);break;case 70:0!=(1&a.value)&&(t.closed=!0),0!=(2&a.value)&&(t.periodic=!0),0!=(4&a.value)&&(t.rational=!0),0!=(8&a.value)&&(t.planar=!0),0!=(16&a.value)&&(t.planar=!0,t.linear=!0);break;case 71:t.degreeOfSplineCurve=a.value;break;case 72:t.numberOfKnots=a.value;break;case 73:t.numberOfControlPoints=a.value;break;case 74:t.numberOfFitPoints=a.value;break;case 210:t.normalVector=s(e);break;default:o(t,a,e)}a=e.next()}return t}}class P{constructor(){this.ForEntityName="TEXT"}parseEntity(e,a){const t={type:a.value};for(a=e.next();!e.isEOF()&&0!==a.code;){switch(a.code){case 10:t.startPoint=s(e);break;case 11:t.endPoint=s(e);break;case 40:t.textHeight=a.value;break;case 41:t.xScale=a.value;break;case 50:t.rotation=a.value;break;case 1:t.text=a.value;break;case 72:t.halign=a.value;break;case 73:t.valign=a.value;break;default:o(t,a,e)}a=e.next()}return t}}var N=t(43),O=t.n(N);O().setLevel("error");class T{constructor(){var e;this._entityHandlers={},(e=this).registerEntityHandler(c),e.registerEntityHandler(i),e.registerEntityHandler(u),e.registerEntityHandler(d),e.registerEntityHandler(v),e.registerEntityHandler(b),e.registerEntityHandler(p),e.registerEntityHandler(f),e.registerEntityHandler(k),e.registerEntityHandler(h),e.registerEntityHandler(y),e.registerEntityHandler(E),e.registerEntityHandler(m),e.registerEntityHandler(F),e.registerEntityHandler(P)}parse(e){return"string"==typeof e?this._parse(e):(console.error("Cannot read dxf source of type `"+typeof e),null)}registerEntityHandler(e){const a=new e;this._entityHandlers[a.ForEntityName]=a}parseSync(e){return this.parse(e)}parseStream(e){let a="";const t=this;return new Promise(((r,n)=>{e.on("data",(e=>{a+=e})),e.on("end",(()=>{try{r(t._parse(a))}catch(e){n(e)}})),e.on("error",(e=>{n(e)}))}))}_parse(a){const t={};let r=0;const s=a.split(/
+||
+/g),o=new e(s);if(!o.hasNext())throw Error("Empty file");const c=this;let l;function i(){let e=null,a=null;const t={};for(l=o.next();;){if(L(l,0,"ENDSEC")){e&&(t[e]=a);break}9===l.code?(e&&(t[e]=a),e=l.value):10===l.code?a={x:l.value}:20===l.code?a.y=l.value:30===l.code?a.z=l.value:a=l.value,l=o.next()}return l=o.next(),t}function u(){const e={};for(l=o.next();"EOF"!==l.value&&!L(l,0,"ENDSEC");)if(L(l,0,"BLOCK")){O().debug("block {");const a=d();O().debug("}"),h(a),a.name?e[a.name]=a:O().error('block with handle "'+a.handle+'" is missing a name.')}else S(l),l=o.next();return e}function d(){const e={};for(l=o.next();"EOF"!==l.value;){switch(l.code){case 1:e.xrefPath=l.value,l=o.next();break;case 2:e.name=l.value,l=o.next();break;case 3:e.name2=l.value,l=o.next();break;case 5:e.handle=l.value,l=o.next();break;case 8:e.layer=l.value,l=o.next();break;case 10:e.position=x(l),l=o.next();break;case 67:e.paperSpace=!(!l.value||1!=l.value),l=o.next();break;case 70:0!=l.value&&(e.type=l.value),l=o.next();break;case 100:l=o.next();break;case 330:e.ownerHandle=l.value,l=o.next();break;case 0:if("ENDBLK"==l.value)break;e.entities=k(!0);break;default:S(l),l=o.next()}if(L(l,0,"ENDBLK")){l=o.next();break}}return e}function v(){const e={};for(l=o.next();"EOF"!==l.value&&!L(l,0,"ENDSEC");)L(l,0,"TABLE")?(l=o.next(),f[l.value]?(O().debug(l.value+" Table {"),e[f[l.value].tableName]=p(l),O().debug("}")):O().debug("Unhandled Table "+l.value)):l=o.next();return l=o.next(),e}const b="ENDTAB";function p(e){const a=f[e.value],t={};let r=0;for(l=o.next();!L(l,0,b);)switch(l.code){case 5:t.handle=l.value,l=o.next();break;case 330:t.ownerHandle=l.value,l=o.next();break;case 100:"AcDbSymbolTable"===l.value||S(l),l=o.next();break;case 70:r=l.value,l=o.next();break;case 0:l.value===a.dxfSymbolName?t[a.tableRecordsProperty]=a.parseTableRecords():(S(l),l=o.next());break;default:S(l),l=o.next()}const n=t[a.tableRecordsProperty];if(n){let e=n.constructor===Array?n.length:"object"==typeof n?Object.keys(n).length:void 0;r!==e&&O().warn("Parsed "+e+" "+a.dxfSymbolName+"'s but expected "+r)}return l=o.next(),t}const f={VPORT:{tableRecordsProperty:"viewPorts",tableName:"viewPort",dxfSymbolName:"VPORT",parseTableRecords:function(){const e=[];let a={};for(O().debug("ViewPort {"),l=o.next();!L(l,0,b);)switch(l.code){case 2:a.name=l.value,l=o.next();break;case 10:a.lowerLeftCorner=x(l),l=o.next();break;case 11:a.upperRightCorner=x(l),l=o.next();break;case 12:a.center=x(l),l=o.next();break;case 13:a.snapBasePoint=x(l),l=o.next();break;case 14:a.snapSpacing=x(l),l=o.next();break;case 15:a.gridSpacing=x(l),l=o.next();break;case 16:a.viewDirectionFromTarget=x(l),l=o.next();break;case 17:a.viewTarget=x(l),l=o.next();break;case 42:a.lensLength=l.value,l=o.next();break;case 43:a.frontClippingPlane=l.value,l=o.next();break;case 44:a.backClippingPlane=l.value,l=o.next();break;case 45:a.viewHeight=l.value,l=o.next();break;case 50:a.snapRotationAngle=l.value,l=o.next();break;case 51:a.viewTwistAngle=l.value,l=o.next();break;case 79:a.orthographicType=l.value,l=o.next();break;case 110:a.ucsOrigin=x(l),l=o.next();break;case 111:a.ucsXAxis=x(l),l=o.next();break;case 112:a.ucsYAxis=x(l),l=o.next();break;case 110:a.ucsOrigin=x(l),l=o.next();break;case 281:a.renderMode=l.value,l=o.next();break;case 281:a.defaultLightingType=l.value,l=o.next();break;case 292:a.defaultLightingOn=l.value,l=o.next();break;case 330:a.ownerHandle=l.value,l=o.next();break;case 63:case 421:case 431:a.ambientColor=l.value,l=o.next();break;case 0:"VPORT"===l.value&&(O().debug("}"),e.push(a),O().debug("ViewPort {"),a={},l=o.next());break;default:S(l),l=o.next()}return O().debug("}"),e.push(a),e}},LTYPE:{tableRecordsProperty:"lineTypes",tableName:"lineType",dxfSymbolName:"LTYPE",parseTableRecords:function(){const e={};let a,t={},r=0;for(O().debug("LType {"),l=o.next();!L(l,0,"ENDTAB");)switch(l.code){case 2:t.name=l.value,a=l.value,l=o.next();break;case 3:t.description=l.value,l=o.next();break;case 73:r=l.value,r>0&&(t.pattern=[]),l=o.next();break;case 40:t.patternLength=l.value,l=o.next();break;case 49:t.pattern.push(l.value),l=o.next();break;case 0:O().debug("}"),r>0&&r!==t.pattern.length&&O().warn("lengths do not match on LTYPE pattern"),e[a]=t,t={},O().debug("LType {"),l=o.next();break;default:l=o.next()}return O().debug("}"),e[a]=t,e}},LAYER:{tableRecordsProperty:"layers",tableName:"layer",dxfSymbolName:"LAYER",parseTableRecords:function(){const e={};let a,t={};for(O().debug("Layer {"),l=o.next();!L(l,0,"ENDTAB");)switch(l.code){case 2:t.name=l.value,a=l.value,l=o.next();break;case 62:t.visible=l.value>=0,t.colorIndex=Math.abs(l.value),t.color=(r=t.colorIndex,n[r]),l=o.next();break;case 70:t.frozen=0!=(1&l.value)||0!=(2&l.value),l=o.next();break;case 0:"LAYER"===l.value&&(O().debug("}"),e[a]=t,O().debug("Layer {"),t={},a=void 0,l=o.next());break;default:S(l),l=o.next()}var r;return O().debug("}"),e[a]=t,e}}};function k(e){const a=[],t=e?"ENDBLK":"ENDSEC";for(e||(l=o.next());;)if(0===l.code){if(l.value===t)break;const e=c._entityHandlers[l.value];if(null==e){O().warn("Unhandled entity "+l.value),l=o.next();continue}{O().debug(l.value+" {");const t=e.parseEntity(o,l);l=o.lastReadGroup,O().debug("}"),h(t),a.push(t)}}else l=o.next();return"ENDSEC"==t&&(l=o.next()),a}function x(e){const a={};let t=e.code;if(a.x=e.value,t+=10,(e=o.next()).code!=t)throw new Error("Expected code for point value to be "+t+" but got "+e.code+".");return a.y=e.value,t+=10,(e=o.next()).code!=t?(o.rewind(),a):(a.z=e.value,a)}function h(e){if(!e)throw new TypeError("entity cannot be undefined or null");e.handle||(e.handle=r++)}return function(){for(l=o.next();!o.isEOF();)if(0===l.code&&"SECTION"===l.value){if(l=o.next(),2!==l.code){console.error("Unexpected code %s after 0:SECTION",D(l)),l=o.next();continue}"HEADER"===l.value?(O().debug("> HEADER"),t.header=i(),O().debug("<")):"BLOCKS"===l.value?(O().debug("> BLOCKS"),t.blocks=u(),O().debug("<")):"ENTITIES"===l.value?(O().debug("> ENTITIES"),t.entities=k(!1),O().debug("<")):"TABLES"===l.value?(O().debug("> TABLES"),t.tables=v(),O().debug("<")):"EOF"===l.value?O().debug("EOF"):O().warn("Skipping section '%s'",l.value)}else l=o.next()}(),t}}function L(e,a,t){return e.code===a&&e.value===t}function S(e){O().debug("unhandled group "+D(e))}function D(e){return e.code+":"+e.value}})(),r.DxfParser})()}));
 </script>
   <script>/*! delaunator v5.0.1 - bundled */
 !function(t,i){"object"==typeof exports&&"undefined"!=typeof module?module.exports=i():"function"==typeof define&&define.amd?define(i):(t="undefined"!=typeof globalThis?globalThis:t||self).Delaunator=i()}(this,(function(){"use strict";const t=11102230246251565e-32,i=134217729,s=(3+8*t)*t;function e(t,i,s,e,n){let h,r,l,o,a=i[0],f=e[0],c=0,u=0;f>a==f>-a?(h=a,a=i[++c]):(h=f,f=e[++u]);let _=0;if(c<t&&u<s)for(f>a==f>-a?(r=a+h,l=h-(r-a),a=i[++c]):(r=f+h,l=h-(r-f),f=e[++u]),h=r,0!==l&&(n[_++]=l);c<t&&u<s;)f>a==f>-a?(r=h+a,o=r-h,l=h-(r-o)+(a-o),a=i[++c]):(r=h+f,o=r-h,l=h-(r-o)+(f-o),f=e[++u]),h=r,0!==l&&(n[_++]=l);for(;c<t;)r=h+a,o=r-h,l=h-(r-o)+(a-o),a=i[++c],h=r,0!==l&&(n[_++]=l);for(;u<s;)r=h+f,o=r-h,l=h-(r-o)+(f-o),f=e[++u],h=r,0!==l&&(n[_++]=l);return 0===h&&0!==_||(n[_++]=h),_}function n(t){return new Float64Array(t)}const h=22204460492503146e-32,r=11093356479670487e-47,l=n(4),o=n(8),a=n(12),f=n(16),c=n(4);function u(t,n,u,_,d,g){const y=(n-g)*(u-d),w=(t-d)*(_-g),b=y-w,A=Math.abs(y+w);return Math.abs(b)>=33306690738754716e-32*A?b:-function(t,n,u,_,d,g,y){let w,b,A,k,M,p,x,S,T,z,U,m,K,L,v,F,P,E;const H=t-d,I=u-d,N=n-g,j=_-g;L=H*j,p=i*H,x=p-(p-H),S=H-x,p=i*j,T=p-(p-j),z=j-T,v=S*z-(L-x*T-S*T-x*z),F=N*I,p=i*N,x=p-(p-N),S=N-x,p=i*I,T=p-(p-I),z=I-T,P=S*z-(F-x*T-S*T-x*z),U=v-P,M=v-U,l[0]=v-(U+M)+(M-P),m=L+U,M=m-L,K=L-(m-M)+(U-M),U=K-F,M=K-U,l[1]=K-(U+M)+(M-F),E=m+U,M=E-m,l[2]=m-(E-M)+(U-M),l[3]=E;let q=function(t,i){let s=i[0];for(let e=1;e<t;e++)s+=i[e];return s}(4,l),D=h*y;if(q>=D||-q>=D)return q;if(M=t-H,w=t-(H+M)+(M-d),M=u-I,A=u-(I+M)+(M-d),M=n-N,b=n-(N+M)+(M-g),M=_-j,k=_-(j+M)+(M-g),0===w&&0===b&&0===A&&0===k)return q;if(D=r*y+s*Math.abs(q),q+=H*k+j*w-(N*A+I*b),q>=D||-q>=D)return q;L=w*j,p=i*w,x=p-(p-w),S=w-x,p=i*j,T=p-(p-j),z=j-T,v=S*z-(L-x*T-S*T-x*z),F=b*I,p=i*b,x=p-(p-b),S=b-x,p=i*I,T=p-(p-I),z=I-T,P=S*z-(F-x*T-S*T-x*z),U=v-P,M=v-U,c[0]=v-(U+M)+(M-P),m=L+U,M=m-L,K=L-(m-M)+(U-M),U=K-F,M=K-U,c[1]=K-(U+M)+(M-F),E=m+U,M=E-m,c[2]=m-(E-M)+(U-M),c[3]=E;const B=e(4,l,4,c,o);L=H*k,p=i*H,x=p-(p-H),S=H-x,p=i*k,T=p-(p-k),z=k-T,v=S*z-(L-x*T-S*T-x*z),F=N*A,p=i*N,x=p-(p-N),S=N-x,p=i*A,T=p-(p-A),z=A-T,P=S*z-(F-x*T-S*T-x*z),U=v-P,M=v-U,c[0]=v-(U+M)+(M-P),m=L+U,M=m-L,K=L-(m-M)+(U-M),U=K-F,M=K-U,c[1]=K-(U+M)+(M-F),E=m+U,M=E-m,c[2]=m-(E-M)+(U-M),c[3]=E;const C=e(B,o,4,c,a);L=w*k,p=i*w,x=p-(p-w),S=w-x,p=i*k,T=p-(p-k),z=k-T,v=S*z-(L-x*T-S*T-x*z),F=b*A,p=i*b,x=p-(p-b),S=b-x,p=i*A,T=p-(p-A),z=A-T,P=S*z-(F-x*T-S*T-x*z),U=v-P,M=v-U,c[0]=v-(U+M)+(M-P),m=L+U,M=m-L,K=L-(m-M)+(U-M),U=K-F,M=K-U,c[1]=K-(U+M)+(M-F),E=m+U,M=E-m,c[2]=m-(E-M)+(U-M),c[3]=E;const G=e(C,a,4,c,f);return f[G-1]}(t,n,u,_,d,g,A)}const _=Math.pow(2,-52),d=new Uint32Array(512);class g{static from(t,i=M,s=p){const e=t.length,n=new Float64Array(2*e);for(let h=0;h<e;h++){const e=t[h];n[2*h]=i(e),n[2*h+1]=s(e)}return new g(n)}constructor(t){const i=t.length>>1;if(i>0&&"number"!=typeof t[0])throw new Error("Expected coords to contain numbers.");this.coords=t;const s=Math.max(2*i-5,0);this._triangles=new Uint32Array(3*s),this._halfedges=new Int32Array(3*s),this._hashSize=Math.ceil(Math.sqrt(i)),this._hullPrev=new Uint32Array(i),this._hullNext=new Uint32Array(i),this._hullTri=new Uint32Array(i),this._hullHash=new Int32Array(this._hashSize),this._ids=new Uint32Array(i),this._dists=new Float64Array(i),this.update()}update(){const{coords:t,_hullPrev:i,_hullNext:s,_hullTri:e,_hullHash:n}=this,h=t.length>>1;let r=1/0,l=1/0,o=-1/0,a=-1/0;for(let i=0;i<h;i++){const s=t[2*i],e=t[2*i+1];s<r&&(r=s),e<l&&(l=e),s>o&&(o=s),e>a&&(a=e),this._ids[i]=i}const f=(r+o)/2,c=(l+a)/2;let d,g,w;for(let i=0,s=1/0;i<h;i++){const e=y(f,c,t[2*i],t[2*i+1]);e<s&&(d=i,s=e)}const k=t[2*d],M=t[2*d+1];for(let i=0,s=1/0;i<h;i++){if(i===d)continue;const e=y(k,M,t[2*i],t[2*i+1]);e<s&&e>0&&(g=i,s=e)}let p=t[2*g],x=t[2*g+1],S=1/0;for(let i=0;i<h;i++){if(i===d||i===g)continue;const s=b(k,M,p,x,t[2*i],t[2*i+1]);s<S&&(w=i,S=s)}let T=t[2*w],z=t[2*w+1];if(S===1/0){for(let i=0;i<h;i++)this._dists[i]=t[2*i]-t[0]||t[2*i+1]-t[1];A(this._ids,this._dists,0,h-1);const i=new Uint32Array(h);let s=0;for(let t=0,e=-1/0;t<h;t++){const n=this._ids[t],h=this._dists[n];h>e&&(i[s++]=n,e=h)}return this.hull=i.subarray(0,s),this.triangles=new Uint32Array(0),void(this.halfedges=new Uint32Array(0))}if(u(k,M,p,x,T,z)<0){const t=g,i=p,s=x;g=w,p=T,x=z,w=t,T=i,z=s}const U=function(t,i,s,e,n,h){const r=s-t,l=e-i,o=n-t,a=h-i,f=r*r+l*l,c=o*o+a*a,u=.5/(r*a-l*o);return{x:t+(a*f-l*c)*u,y:i+(r*c-o*f)*u}}(k,M,p,x,T,z);this._cx=U.x,this._cy=U.y;for(let i=0;i<h;i++)this._dists[i]=y(t[2*i],t[2*i+1],U.x,U.y);A(this._ids,this._dists,0,h-1),this._hullStart=d;let m=3;s[d]=i[w]=g,s[g]=i[d]=w,s[w]=i[g]=d,e[d]=0,e[g]=1,e[w]=2,n.fill(-1),n[this._hashKey(k,M)]=d,n[this._hashKey(p,x)]=g,n[this._hashKey(T,z)]=w,this.trianglesLen=0,this._addTriangle(d,g,w,-1,-1,-1);for(let h,r,l=0;l<this._ids.length;l++){const o=this._ids[l],a=t[2*o],f=t[2*o+1];if(l>0&&Math.abs(a-h)<=_&&Math.abs(f-r)<=_)continue;if(h=a,r=f,o===d||o===g||o===w)continue;let c=0;for(let t=0,i=this._hashKey(a,f);t<this._hashSize&&(c=n[(i+t)%this._hashSize],-1===c||c===s[c]);t++);c=i[c];let y,b=c;for(;y=s[b],u(a,f,t[2*b],t[2*b+1],t[2*y],t[2*y+1])>=0;)if(b=y,b===c){b=-1;break}if(-1===b)continue;let A=this._addTriangle(b,o,s[b],-1,-1,e[b]);e[o]=this._legalize(A+2),e[b]=A,m++;let k=s[b];for(;y=s[k],u(a,f,t[2*k],t[2*k+1],t[2*y],t[2*y+1])<0;)A=this._addTriangle(k,o,y,e[o],-1,e[k]),e[o]=this._legalize(A+2),s[k]=k,m--,k=y;if(b===c)for(;y=i[b],u(a,f,t[2*y],t[2*y+1],t[2*b],t[2*b+1])<0;)A=this._addTriangle(y,o,b,-1,e[b],e[y]),this._legalize(A+2),e[y]=A,s[b]=b,m--,b=y;this._hullStart=i[o]=b,s[b]=i[k]=o,s[o]=k,n[this._hashKey(a,f)]=o,n[this._hashKey(t[2*b],t[2*b+1])]=b}this.hull=new Uint32Array(m);for(let t=0,i=this._hullStart;t<m;t++)this.hull[t]=i,i=s[i];this.triangles=this._triangles.subarray(0,this.trianglesLen),this.halfedges=this._halfedges.subarray(0,this.trianglesLen)}_hashKey(t,i){return Math.floor(function(t,i){const s=t/(Math.abs(t)+Math.abs(i));return(i>0?3-s:1+s)/4}(t-this._cx,i-this._cy)*this._hashSize)%this._hashSize}_legalize(t){const{_triangles:i,_halfedges:s,coords:e}=this;let n=0,h=0;for(;;){const r=s[t],l=t-t%3;if(h=l+(t+2)%3,-1===r){if(0===n)break;t=d[--n];continue}const o=r-r%3,a=l+(t+1)%3,f=o+(r+2)%3,c=i[h],u=i[t],_=i[a],g=i[f];if(w(e[2*c],e[2*c+1],e[2*u],e[2*u+1],e[2*_],e[2*_+1],e[2*g],e[2*g+1])){i[t]=g,i[r]=c;const e=s[f];if(-1===e){let i=this._hullStart;do{if(this._hullTri[i]===f){this._hullTri[i]=t;break}i=this._hullPrev[i]}while(i!==this._hullStart)}this._link(t,e),this._link(r,s[h]),this._link(h,f);const l=o+(r+1)%3;n<d.length&&(d[n++]=l)}else{if(0===n)break;t=d[--n]}}return h}_link(t,i){this._halfedges[t]=i,-1!==i&&(this._halfedges[i]=t)}_addTriangle(t,i,s,e,n,h){const r=this.trianglesLen;return this._triangles[r]=t,this._triangles[r+1]=i,this._triangles[r+2]=s,this._link(r,e),this._link(r+1,n),this._link(r+2,h),this.trianglesLen+=3,r}}function y(t,i,s,e){const n=t-s,h=i-e;return n*n+h*h}function w(t,i,s,e,n,h,r,l){const o=t-r,a=i-l,f=s-r,c=e-l,u=n-r,_=h-l,d=f*f+c*c,g=u*u+_*_;return o*(c*g-d*_)-a*(f*g-d*u)+(o*o+a*a)*(f*_-c*u)<0}function b(t,i,s,e,n,h){const r=s-t,l=e-i,o=n-t,a=h-i,f=r*r+l*l,c=o*o+a*a,u=.5/(r*a-l*o),_=(a*f-l*c)*u,d=(r*c-o*f)*u;return _*_+d*d}function A(t,i,s,e){if(e-s<=20)for(let n=s+1;n<=e;n++){const e=t[n],h=i[e];let r=n-1;for(;r>=s&&i[t[r]]>h;)t[r+1]=t[r--];t[r+1]=e}else{let n=s+1,h=e;k(t,s+e>>1,n),i[t[s]]>i[t[e]]&&k(t,s,e),i[t[n]]>i[t[e]]&&k(t,n,e),i[t[s]]>i[t[n]]&&k(t,s,n);const r=t[n],l=i[r];for(;;){do{n++}while(i[t[n]]<l);do{h--}while(i[t[h]]>l);if(h<n)break;k(t,n,h)}t[s+1]=t[h],t[h]=r,e-n+1>=h-s?(A(t,i,n,e),A(t,i,s,h-1)):(A(t,i,s,h-1),A(t,i,n,e))}}function k(t,i,s){const e=t[i];t[i]=t[s],t[s]=e}function M(t){return t[0]}function p(t){return t[1]}return g}));
@@ -21,8 +23,27 @@ v5.4.1
 https://github.com/mholt/PapaParse
 License: MIT
 */
-!function(e,t){"function"==typeof define&&define.amd?define([],t):"object"==typeof module&&"undefined"!=typeof exports?module.exports=t():e.Papa=t()}(this,function s(){"use strict";var f="undefined"!=typeof self?self:"undefined"!=typeof window?window:void 0!==f?f:{};var n=!f.document&&!!f.postMessage,o=f.IS_PAPA_WORKER||!1,a={},u=0,b={parse:function(e,t){var r=(t=t||{}).dynamicTyping||!1;J(r)&&(t.dynamicTypingFunction=r,r={});if(t.dynamicTyping=r,t.transform=!!J(t.transform)&&t.transform,t.worker&&b.WORKERS_SUPPORTED){var i=function(){if(!b.WORKERS_SUPPORTED)return!1;var e=(r=f.URL||f.webkitURL||null,i=s.toString(),b.BLOB_URL||(b.BLOB_URL=r.createObjectURL(new Blob(["var global = (function() { if (typeof self !== 'undefined') { return self; } if (typeof window !== 'undefined') { return window; } if (typeof global !== 'undefined') { return global; } return {}; })(); global.IS_PAPA_WORKER=true; ","(",i,")();"],{type:"text/javascript"})))),t=new f.Worker(e);var r,i;return t.onmessage=_,t.id=u++,a[t.id]=t}();return i.userStep=t.step,i.userChunk=t.chunk,i.userComplete=t.complete,i.userError=t.error,t.step=J(t.step),t.chunk=J(t.chunk),t.complete=J(t.complete),t.error=J(t.error),delete t.worker,void i.postMessage({input:e,config:t,workerId:i.id})}var n=null;b.NODE_STREAM_INPUT,"string"==typeof e?(e=function(e){if(65279===e.charCodeAt(0))return e.slice(1);return e}(e),n=t.download?new l(t):new p(t)):!0===e.readable&&J(e.read)&&J(e.on)?n=new g(t):(f.File&&e instanceof File||e instanceof Object)&&(n=new c(t));return n.stream(e)},unparse:function(e,t){var n=!1,_=!0,m=",",y="\r\n",s='"',a=s+s,r=!1,i=null,o=!1;!function(){if("object"!=typeof t)return;"string"!=typeof t.delimiter||b.BAD_DELIMITERS.filter(function(e){return-1!==t.delimiter.indexOf(e)}).length||(m=t.delimiter);("boolean"==typeof t.quotes||"function"==typeof t.quotes||Array.isArray(t.quotes))&&(n=t.quotes);"boolean"!=typeof t.skipEmptyLines&&"string"!=typeof t.skipEmptyLines||(r=t.skipEmptyLines);"string"==typeof t.newline&&(y=t.newline);"string"==typeof t.quoteChar&&(s=t.quoteChar);"boolean"==typeof t.header&&(_=t.header);if(Array.isArray(t.columns)){if(0===t.columns.length)throw new Error("Option columns is empty");i=t.columns}void 0!==t.escapeChar&&(a=t.escapeChar+s);("boolean"==typeof t.escapeFormulae||t.escapeFormulae instanceof RegExp)&&(o=t.escapeFormulae instanceof RegExp?t.escapeFormulae:/^[=+\-@\t\r].*$/)}();var u=new RegExp(Q(s),"g");"string"==typeof e&&(e=JSON.parse(e));if(Array.isArray(e)){if(!e.length||Array.isArray(e[0]))return h(null,e,r);if("object"==typeof e[0])return h(i||Object.keys(e[0]),e,r)}else if("object"==typeof e)return"string"==typeof e.data&&(e.data=JSON.parse(e.data)),Array.isArray(e.data)&&(e.fields||(e.fields=e.meta&&e.meta.fields||i),e.fields||(e.fields=Array.isArray(e.data[0])?e.fields:"object"==typeof e.data[0]?Object.keys(e.data[0]):[]),Array.isArray(e.data[0])||"object"==typeof e.data[0]||(e.data=[e.data])),h(e.fields||[],e.data||[],r);throw new Error("Unable to serialize unrecognized input");function h(e,t,r){var i="";"string"==typeof e&&(e=JSON.parse(e)),"string"==typeof t&&(t=JSON.parse(t));var n=Array.isArray(e)&&0<e.length,s=!Array.isArray(t[0]);if(n&&_){for(var a=0;a<e.length;a++)0<a&&(i+=m),i+=v(e[a],a);0<t.length&&(i+=y)}for(var o=0;o<t.length;o++){var u=n?e.length:t[o].length,h=!1,f=n?0===Object.keys(t[o]).length:0===t[o].length;if(r&&!n&&(h="greedy"===r?""===t[o].join("").trim():1===t[o].length&&0===t[o][0].length),"greedy"===r&&n){for(var d=[],l=0;l<u;l++){var c=s?e[l]:l;d.push(t[o][c])}h=""===d.join("").trim()}if(!h){for(var p=0;p<u;p++){0<p&&!f&&(i+=m);var g=n&&s?e[p]:p;i+=v(t[o][g],p)}o<t.length-1&&(!r||0<u&&!f)&&(i+=y)}}return i}function v(e,t){if(null==e)return"";if(e.constructor===Date)return JSON.stringify(e).slice(1,25);var r=!1;o&&"string"==typeof e&&o.test(e)&&(e="'"+e,r=!0);var i=e.toString().replace(u,a);return(r=r||!0===n||"function"==typeof n&&n(e,t)||Array.isArray(n)&&n[t]||function(e,t){for(var r=0;r<t.length;r++)if(-1<e.indexOf(t[r]))return!0;return!1}(i,b.BAD_DELIMITERS)||-1<i.indexOf(m)||" "===i.charAt(0)||" "===i.charAt(i.length-1))?s+i+s:i}}};if(b.RECORD_SEP=String.fromCharCode(30),b.UNIT_SEP=String.fromCharCode(31),b.BYTE_ORDER_MARK="\ufeff",b.BAD_DELIMITERS=["\r","\n",'"',b.BYTE_ORDER_MARK],b.WORKERS_SUPPORTED=!n&&!!f.Worker,b.NODE_STREAM_INPUT=1,b.LocalChunkSize=10485760,b.RemoteChunkSize=5242880,b.DefaultDelimiter=",",b.Parser=E,b.ParserHandle=r,b.NetworkStreamer=l,b.FileStreamer=c,b.StringStreamer=p,b.ReadableStreamStreamer=g,f.jQuery){var d=f.jQuery;d.fn.parse=function(o){var r=o.config||{},u=[];return this.each(function(e){if(!("INPUT"===d(this).prop("tagName").toUpperCase()&&"file"===d(this).attr("type").toLowerCase()&&f.FileReader)||!this.files||0===this.files.length)return!0;for(var t=0;t<this.files.length;t++)u.push({file:this.files[t],inputElem:this,instanceConfig:d.extend({},r)})}),e(),this;function e(){if(0!==u.length){var e,t,r,i,n=u[0];if(J(o.before)){var s=o.before(n.file,n.inputElem);if("object"==typeof s){if("abort"===s.action)return e="AbortError",t=n.file,r=n.inputElem,i=s.reason,void(J(o.error)&&o.error({name:e},t,r,i));if("skip"===s.action)return void h();"object"==typeof s.config&&(n.instanceConfig=d.extend(n.instanceConfig,s.config))}else if("skip"===s)return void h()}var a=n.instanceConfig.complete;n.instanceConfig.complete=function(e){J(a)&&a(e,n.file,n.inputElem),h()},b.parse(n.file,n.instanceConfig)}else J(o.complete)&&o.complete()}function h(){u.splice(0,1),e()}}}function h(e){this._handle=null,this._finished=!1,this._completed=!1,this._halted=!1,this._input=null,this._baseIndex=0,this._partialLine="",this._rowCount=0,this._start=0,this._nextChunk=null,this.isFirstChunk=!0,this._completeResults={data:[],errors:[],meta:{}},function(e){var t=w(e);t.chunkSize=parseInt(t.chunkSize),e.step||e.chunk||(t.chunkSize=null);this._handle=new r(t),(this._handle.streamer=this)._config=t}.call(this,e),this.parseChunk=function(e,t){if(this.isFirstChunk&&J(this._config.beforeFirstChunk)){var r=this._config.beforeFirstChunk(e);void 0!==r&&(e=r)}this.isFirstChunk=!1,this._halted=!1;var i=this._partialLine+e;this._partialLine="";var n=this._handle.parse(i,this._baseIndex,!this._finished);if(!this._handle.paused()&&!this._handle.aborted()){var s=n.meta.cursor;this._finished||(this._partialLine=i.substring(s-this._baseIndex),this._baseIndex=s),n&&n.data&&(this._rowCount+=n.data.length);var a=this._finished||this._config.preview&&this._rowCount>=this._config.preview;if(o)f.postMessage({results:n,workerId:b.WORKER_ID,finished:a});else if(J(this._config.chunk)&&!t){if(this._config.chunk(n,this._handle),this._handle.paused()||this._handle.aborted())return void(this._halted=!0);n=void 0,this._completeResults=void 0}return this._config.step||this._config.chunk||(this._completeResults.data=this._completeResults.data.concat(n.data),this._completeResults.errors=this._completeResults.errors.concat(n.errors),this._completeResults.meta=n.meta),this._completed||!a||!J(this._config.complete)||n&&n.meta.aborted||(this._config.complete(this._completeResults,this._input),this._completed=!0),a||n&&n.meta.paused||this._nextChunk(),n}this._halted=!0},this._sendError=function(e){J(this._config.error)?this._config.error(e):o&&this._config.error&&f.postMessage({workerId:b.WORKER_ID,error:e,finished:!1})}}function l(e){var i;(e=e||{}).chunkSize||(e.chunkSize=b.RemoteChunkSize),h.call(this,e),this._nextChunk=n?function(){this._readChunk(),this._chunkLoaded()}:function(){this._readChunk()},this.stream=function(e){this._input=e,this._nextChunk()},this._readChunk=function(){if(this._finished)this._chunkLoaded();else{if(i=new XMLHttpRequest,this._config.withCredentials&&(i.withCredentials=this._config.withCredentials),n||(i.onload=v(this._chunkLoaded,this),i.onerror=v(this._chunkError,this)),i.open(this._config.downloadRequestBody?"POST":"GET",this._input,!n),this._config.downloadRequestHeaders){var e=this._config.downloadRequestHeaders;for(var t in e)i.setRequestHeader(t,e[t])}if(this._config.chunkSize){var r=this._start+this._config.chunkSize-1;i.setRequestHeader("Range","bytes="+this._start+"-"+r)}try{i.send(this._config.downloadRequestBody)}catch(e){this._chunkError(e.message)}n&&0===i.status&&this._chunkError()}},this._chunkLoaded=function(){4===i.readyState&&(i.status<200||400<=i.status?this._chunkError():(this._start+=this._config.chunkSize?this._config.chunkSize:i.responseText.length,this._finished=!this._config.chunkSize||this._start>=function(e){var t=e.getResponseHeader("Content-Range");if(null===t)return-1;return parseInt(t.substring(t.lastIndexOf("/")+1))}(i),this.parseChunk(i.responseText)))},this._chunkError=function(e){var t=i.statusText||e;this._sendError(new Error(t))}}function c(e){var i,n;(e=e||{}).chunkSize||(e.chunkSize=b.LocalChunkSize),h.call(this,e);var s="undefined"!=typeof FileReader;this.stream=function(e){this._input=e,n=e.slice||e.webkitSlice||e.mozSlice,s?((i=new FileReader).onload=v(this._chunkLoaded,this),i.onerror=v(this._chunkError,this)):i=new FileReaderSync,this._nextChunk()},this._nextChunk=function(){this._finished||this._config.preview&&!(this._rowCount<this._config.preview)||this._readChunk()},this._readChunk=function(){var e=this._input;if(this._config.chunkSize){var t=Math.min(this._start+this._config.chunkSize,this._input.size);e=n.call(e,this._start,t)}var r=i.readAsText(e,this._config.encoding);s||this._chunkLoaded({target:{result:r}})},this._chunkLoaded=function(e){this._start+=this._config.chunkSize,this._finished=!this._config.chunkSize||this._start>=this._input.size,this.parseChunk(e.target.result)},this._chunkError=function(){this._sendError(i.error)}}function p(e){var r;h.call(this,e=e||{}),this.stream=function(e){return r=e,this._nextChunk()},this._nextChunk=function(){if(!this._finished){var e,t=this._config.chunkSize;return t?(e=r.substring(0,t),r=r.substring(t)):(e=r,r=""),this._finished=!r,this.parseChunk(e)}}}function g(e){h.call(this,e=e||{});var t=[],r=!0,i=!1;this.pause=function(){h.prototype.pause.apply(this,arguments),this._input.pause()},this.resume=function(){h.prototype.resume.apply(this,arguments),this._input.resume()},this.stream=function(e){this._input=e,this._input.on("data",this._streamData),this._input.on("end",this._streamEnd),this._input.on("error",this._streamError)},this._checkIsFinished=function(){i&&1===t.length&&(this._finished=!0)},this._nextChunk=function(){this._checkIsFinished(),t.length?this.parseChunk(t.shift()):r=!0},this._streamData=v(function(e){try{t.push("string"==typeof e?e:e.toString(this._config.encoding)),r&&(r=!1,this._checkIsFinished(),this.parseChunk(t.shift()))}catch(e){this._streamError(e)}},this),this._streamError=v(function(e){this._streamCleanUp(),this._sendError(e)},this),this._streamEnd=v(function(){this._streamCleanUp(),i=!0,this._streamData("")},this),this._streamCleanUp=v(function(){this._input.removeListener("data",this._streamData),this._input.removeListener("end",this._streamEnd),this._input.removeListener("error",this._streamError)},this)}function r(m){var a,o,u,i=Math.pow(2,53),n=-i,s=/^\s*-?(\d+\.?|\.\d+|\d+\.\d+)([eE][-+]?\d+)?\s*$/,h=/^((\d{4}-[01]\d-[0-3]\dT[0-2]\d:[0-5]\d:[0-5]\d\.\d+([+-][0-2]\d:[0-5]\d|Z))|(\d{4}-[01]\d-[0-3]\dT[0-2]\d:[0-5]\d:[0-5]\d([+-][0-2]\d:[0-5]\d|Z))|(\d{4}-[01]\d-[0-3]\dT[0-2]\d:[0-5]\d([+-][0-2]\d:[0-5]\d|Z)))$/,t=this,r=0,f=0,d=!1,e=!1,l=[],c={data:[],errors:[],meta:{}};if(J(m.step)){var p=m.step;m.step=function(e){if(c=e,_())g();else{if(g(),0===c.data.length)return;r+=e.data.length,m.preview&&r>m.preview?o.abort():(c.data=c.data[0],p(c,t))}}}function y(e){return"greedy"===m.skipEmptyLines?""===e.join("").trim():1===e.length&&0===e[0].length}function g(){return c&&u&&(k("Delimiter","UndetectableDelimiter","Unable to auto-detect delimiting character; defaulted to '"+b.DefaultDelimiter+"'"),u=!1),m.skipEmptyLines&&(c.data=c.data.filter(function(e){return!y(e)})),_()&&function(){if(!c)return;function e(e,t){J(m.transformHeader)&&(e=m.transformHeader(e,t)),l.push(e)}if(Array.isArray(c.data[0])){for(var t=0;_()&&t<c.data.length;t++)c.data[t].forEach(e);c.data.splice(0,1)}else c.data.forEach(e)}(),function(){if(!c||!m.header&&!m.dynamicTyping&&!m.transform)return c;function e(e,t){var r,i=m.header?{}:[];for(r=0;r<e.length;r++){var n=r,s=e[r];m.header&&(n=r>=l.length?"__parsed_extra":l[r]),m.transform&&(s=m.transform(s,n)),s=v(n,s),"__parsed_extra"===n?(i[n]=i[n]||[],i[n].push(s)):i[n]=s}return m.header&&(r>l.length?k("FieldMismatch","TooManyFields","Too many fields: expected "+l.length+" fields but parsed "+r,f+t):r<l.length&&k("FieldMismatch","TooFewFields","Too few fields: expected "+l.length+" fields but parsed "+r,f+t)),i}var t=1;!c.data.length||Array.isArray(c.data[0])?(c.data=c.data.map(e),t=c.data.length):c.data=e(c.data,0);m.header&&c.meta&&(c.meta.fields=l);return f+=t,c}()}function _(){return m.header&&0===l.length}function v(e,t){return r=e,m.dynamicTypingFunction&&void 0===m.dynamicTyping[r]&&(m.dynamicTyping[r]=m.dynamicTypingFunction(r)),!0===(m.dynamicTyping[r]||m.dynamicTyping)?"true"===t||"TRUE"===t||"false"!==t&&"FALSE"!==t&&(function(e){if(s.test(e)){var t=parseFloat(e);if(n<t&&t<i)return!0}return!1}(t)?parseFloat(t):h.test(t)?new Date(t):""===t?null:t):t;var r}function k(e,t,r,i){var n={type:e,code:t,message:r};void 0!==i&&(n.row=i),c.errors.push(n)}this.parse=function(e,t,r){var i=m.quoteChar||'"';if(m.newline||(m.newline=function(e,t){e=e.substring(0,1048576);var r=new RegExp(Q(t)+"([^]*?)"+Q(t),"gm"),i=(e=e.replace(r,"")).split("\r"),n=e.split("\n"),s=1<n.length&&n[0].length<i[0].length;if(1===i.length||s)return"\n";for(var a=0,o=0;o<i.length;o++)"\n"===i[o][0]&&a++;return a>=i.length/2?"\r\n":"\r"}(e,i)),u=!1,m.delimiter)J(m.delimiter)&&(m.delimiter=m.delimiter(e),c.meta.delimiter=m.delimiter);else{var n=function(e,t,r,i,n){var s,a,o,u;n=n||[",","\t","|",";",b.RECORD_SEP,b.UNIT_SEP];for(var h=0;h<n.length;h++){var f=n[h],d=0,l=0,c=0;o=void 0;for(var p=new E({comments:i,delimiter:f,newline:t,preview:10}).parse(e),g=0;g<p.data.length;g++)if(r&&y(p.data[g]))c++;else{var _=p.data[g].length;l+=_,void 0!==o?0<_&&(d+=Math.abs(_-o),o=_):o=_}0<p.data.length&&(l/=p.data.length-c),(void 0===a||d<=a)&&(void 0===u||u<l)&&1.99<l&&(a=d,s=f,u=l)}return{successful:!!(m.delimiter=s),bestDelimiter:s}}(e,m.newline,m.skipEmptyLines,m.comments,m.delimitersToGuess);n.successful?m.delimiter=n.bestDelimiter:(u=!0,m.delimiter=b.DefaultDelimiter),c.meta.delimiter=m.delimiter}var s=w(m);return m.preview&&m.header&&s.preview++,a=e,o=new E(s),c=o.parse(a,t,r),g(),d?{meta:{paused:!0}}:c||{meta:{paused:!1}}},this.paused=function(){return d},this.pause=function(){d=!0,o.abort(),a=J(m.chunk)?"":a.substring(o.getCharIndex())},this.resume=function(){t.streamer._halted?(d=!1,t.streamer.parseChunk(a,!0)):setTimeout(t.resume,3)},this.aborted=function(){return e},this.abort=function(){e=!0,o.abort(),c.meta.aborted=!0,J(m.complete)&&m.complete(c),a=""}}function Q(e){return e.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")}function E(j){var z,M=(j=j||{}).delimiter,P=j.newline,U=j.comments,q=j.step,N=j.preview,B=j.fastMode,K=z=void 0===j.quoteChar||null===j.quoteChar?'"':j.quoteChar;if(void 0!==j.escapeChar&&(K=j.escapeChar),("string"!=typeof M||-1<b.BAD_DELIMITERS.indexOf(M))&&(M=","),U===M)throw new Error("Comment character same as delimiter");!0===U?U="#":("string"!=typeof U||-1<b.BAD_DELIMITERS.indexOf(U))&&(U=!1),"\n"!==P&&"\r"!==P&&"\r\n"!==P&&(P="\n");var W=0,H=!1;this.parse=function(i,t,r){if("string"!=typeof i)throw new Error("Input must be a string");var n=i.length,e=M.length,s=P.length,a=U.length,o=J(q),u=[],h=[],f=[],d=W=0;if(!i)return L();if(j.header&&!t){var l=i.split(P)[0].split(M),c=[],p={},g=!1;for(var _ in l){var m=l[_];J(j.transformHeader)&&(m=j.transformHeader(m,_));var y=m,v=p[m]||0;for(0<v&&(g=!0,y=m+"_"+v),p[m]=v+1;c.includes(y);)y=y+"_"+v;c.push(y)}if(g){var k=i.split(P);k[0]=c.join(M),i=k.join(P)}}if(B||!1!==B&&-1===i.indexOf(z)){for(var b=i.split(P),E=0;E<b.length;E++){if(f=b[E],W+=f.length,E!==b.length-1)W+=P.length;else if(r)return L();if(!U||f.substring(0,a)!==U){if(o){if(u=[],I(f.split(M)),F(),H)return L()}else I(f.split(M));if(N&&N<=E)return u=u.slice(0,N),L(!0)}}return L()}for(var w=i.indexOf(M,W),R=i.indexOf(P,W),C=new RegExp(Q(K)+Q(z),"g"),S=i.indexOf(z,W);;)if(i[W]!==z)if(U&&0===f.length&&i.substring(W,W+a)===U){if(-1===R)return L();W=R+s,R=i.indexOf(P,W),w=i.indexOf(M,W)}else if(-1!==w&&(w<R||-1===R))f.push(i.substring(W,w)),W=w+e,w=i.indexOf(M,W);else{if(-1===R)break;if(f.push(i.substring(W,R)),D(R+s),o&&(F(),H))return L();if(N&&u.length>=N)return L(!0)}else for(S=W,W++;;){if(-1===(S=i.indexOf(z,S+1)))return r||h.push({type:"Quotes",code:"MissingQuotes",message:"Quoted field unterminated",row:u.length,index:W}),T();if(S===n-1)return T(i.substring(W,S).replace(C,z));if(z!==K||i[S+1]!==K){if(z===K||0===S||i[S-1]!==K){-1!==w&&w<S+1&&(w=i.indexOf(M,S+1)),-1!==R&&R<S+1&&(R=i.indexOf(P,S+1));var O=A(-1===R?w:Math.min(w,R));if(i.substr(S+1+O,e)===M){f.push(i.substring(W,S).replace(C,z)),i[W=S+1+O+e]!==z&&(S=i.indexOf(z,W)),w=i.indexOf(M,W),R=i.indexOf(P,W);break}var x=A(R);if(i.substring(S+1+x,S+1+x+s)===P){if(f.push(i.substring(W,S).replace(C,z)),D(S+1+x+s),w=i.indexOf(M,W),S=i.indexOf(z,W),o&&(F(),H))return L();if(N&&u.length>=N)return L(!0);break}h.push({type:"Quotes",code:"InvalidQuotes",message:"Trailing quote on quoted field is malformed",row:u.length,index:W}),S++}}else S++}return T();function I(e){u.push(e),d=W}function A(e){var t=0;if(-1!==e){var r=i.substring(S+1,e);r&&""===r.trim()&&(t=r.length)}return t}function T(e){return r||(void 0===e&&(e=i.substring(W)),f.push(e),W=n,I(f),o&&F()),L()}function D(e){W=e,I(f),f=[],R=i.indexOf(P,W)}function L(e){return{data:u,errors:h,meta:{delimiter:M,linebreak:P,aborted:H,truncated:!!e,cursor:d+(t||0)}}}function F(){q(L()),u=[],h=[]}},this.abort=function(){H=!0},this.getCharIndex=function(){return W}}function _(e){var t=e.data,r=a[t.workerId],i=!1;if(t.error)r.userError(t.error,t.file);else if(t.results&&t.results.data){var n={abort:function(){i=!0,m(t.workerId,{data:[],errors:[],meta:{aborted:!0}})},pause:y,resume:y};if(J(r.userStep)){for(var s=0;s<t.results.data.length&&(r.userStep({data:t.results.data[s],errors:t.results.errors,meta:t.results.meta},n),!i);s++);delete t.results}else J(r.userChunk)&&(r.userChunk(t.results,n,t.file),delete t.results)}t.finished&&!i&&m(t.workerId,t.results)}function m(e,t){var r=a[e];J(r.userComplete)&&r.userComplete(t),r.terminate(),delete a[e]}function y(){throw new Error("Not implemented.")}function w(e){if("object"!=typeof e||null===e)return e;var t=Array.isArray(e)?[]:{};for(var r in e)t[r]=w(e[r]);return t}function v(e,t){return function(){e.apply(t,arguments)}}function J(e){return"function"==typeof e}return o&&(f.onmessage=function(e){var t=e.data;void 0===b.WORKER_ID&&t&&(b.WORKER_ID=t.workerId);if("string"==typeof t.input)f.postMessage({workerId:b.WORKER_ID,results:b.parse(t.input,t.config),finished:!0});else if(f.File&&t.input instanceof File||t.input instanceof Object){var r=b.parse(t.input,t.config);r&&f.postMessage({workerId:b.WORKER_ID,results:r,finished:!0})}}),(l.prototype=Object.create(h.prototype)).constructor=l,(c.prototype=Object.create(h.prototype)).constructor=c,(p.prototype=Object.create(p.prototype)).constructor=p,(g.prototype=Object.create(h.prototype)).constructor=g,b});
+!function(e,t){"function"==typeof define&&define.amd?define([],t):"object"==typeof module&&"undefined"!=typeof exports?module.exports=t():e.Papa=t()}(this,function s(){"use strict";var f="undefined"!=typeof self?self:"undefined"!=typeof window?window:void 0!==f?f:{};var n=!f.document&&!!f.postMessage,o=f.IS_PAPA_WORKER||!1,a={},u=0,b={parse:function(e,t){var r=(t=t||{}).dynamicTyping||!1;J(r)&&(t.dynamicTypingFunction=r,r={});if(t.dynamicTyping=r,t.transform=!!J(t.transform)&&t.transform,t.worker&&b.WORKERS_SUPPORTED){var i=function(){if(!b.WORKERS_SUPPORTED)return!1;var e=(r=f.URL||f.webkitURL||null,i=s.toString(),b.BLOB_URL||(b.BLOB_URL=r.createObjectURL(new Blob(["var global = (function() { if (typeof self !== 'undefined') { return self; } if (typeof window !== 'undefined') { return window; } if (typeof global !== 'undefined') { return global; } return {}; })(); global.IS_PAPA_WORKER=true; ","(",i,")();"],{type:"text/javascript"})))),t=new f.Worker(e);var r,i;return t.onmessage=_,t.id=u++,a[t.id]=t}();return i.userStep=t.step,i.userChunk=t.chunk,i.userComplete=t.complete,i.userError=t.error,t.step=J(t.step),t.chunk=J(t.chunk),t.complete=J(t.complete),t.error=J(t.error),delete t.worker,void i.postMessage({input:e,config:t,workerId:i.id})}var n=null;b.NODE_STREAM_INPUT,"string"==typeof e?(e=function(e){if(65279===e.charCodeAt(0))return e.slice(1);return e}(e),n=t.download?new l(t):new p(t)):!0===e.readable&&J(e.read)&&J(e.on)?n=new g(t):(f.File&&e instanceof File||e instanceof Object)&&(n=new c(t));return n.stream(e)},unparse:function(e,t){var n=!1,_=!0,m=",",y="
+",s='"',a=s+s,r=!1,i=null,o=!1;!function(){if("object"!=typeof t)return;"string"!=typeof t.delimiter||b.BAD_DELIMITERS.filter(function(e){return-1!==t.delimiter.indexOf(e)}).length||(m=t.delimiter);("boolean"==typeof t.quotes||"function"==typeof t.quotes||Array.isArray(t.quotes))&&(n=t.quotes);"boolean"!=typeof t.skipEmptyLines&&"string"!=typeof t.skipEmptyLines||(r=t.skipEmptyLines);"string"==typeof t.newline&&(y=t.newline);"string"==typeof t.quoteChar&&(s=t.quoteChar);"boolean"==typeof t.header&&(_=t.header);if(Array.isArray(t.columns)){if(0===t.columns.length)throw new Error("Option columns is empty");i=t.columns}void 0!==t.escapeChar&&(a=t.escapeChar+s);("boolean"==typeof t.escapeFormulae||t.escapeFormulae instanceof RegExp)&&(o=t.escapeFormulae instanceof RegExp?t.escapeFormulae:/^[=+\-@	].*$/)}();var u=new RegExp(Q(s),"g");"string"==typeof e&&(e=JSON.parse(e));if(Array.isArray(e)){if(!e.length||Array.isArray(e[0]))return h(null,e,r);if("object"==typeof e[0])return h(i||Object.keys(e[0]),e,r)}else if("object"==typeof e)return"string"==typeof e.data&&(e.data=JSON.parse(e.data)),Array.isArray(e.data)&&(e.fields||(e.fields=e.meta&&e.meta.fields||i),e.fields||(e.fields=Array.isArray(e.data[0])?e.fields:"object"==typeof e.data[0]?Object.keys(e.data[0]):[]),Array.isArray(e.data[0])||"object"==typeof e.data[0]||(e.data=[e.data])),h(e.fields||[],e.data||[],r);throw new Error("Unable to serialize unrecognized input");function h(e,t,r){var i="";"string"==typeof e&&(e=JSON.parse(e)),"string"==typeof t&&(t=JSON.parse(t));var n=Array.isArray(e)&&0<e.length,s=!Array.isArray(t[0]);if(n&&_){for(var a=0;a<e.length;a++)0<a&&(i+=m),i+=v(e[a],a);0<t.length&&(i+=y)}for(var o=0;o<t.length;o++){var u=n?e.length:t[o].length,h=!1,f=n?0===Object.keys(t[o]).length:0===t[o].length;if(r&&!n&&(h="greedy"===r?""===t[o].join("").trim():1===t[o].length&&0===t[o][0].length),"greedy"===r&&n){for(var d=[],l=0;l<u;l++){var c=s?e[l]:l;d.push(t[o][c])}h=""===d.join("").trim()}if(!h){for(var p=0;p<u;p++){0<p&&!f&&(i+=m);var g=n&&s?e[p]:p;i+=v(t[o][g],p)}o<t.length-1&&(!r||0<u&&!f)&&(i+=y)}}return i}function v(e,t){if(null==e)return"";if(e.constructor===Date)return JSON.stringify(e).slice(1,25);var r=!1;o&&"string"==typeof e&&o.test(e)&&(e="'"+e,r=!0);var i=e.toString().replace(u,a);return(r=r||!0===n||"function"==typeof n&&n(e,t)||Array.isArray(n)&&n[t]||function(e,t){for(var r=0;r<t.length;r++)if(-1<e.indexOf(t[r]))return!0;return!1}(i,b.BAD_DELIMITERS)||-1<i.indexOf(m)||" "===i.charAt(0)||" "===i.charAt(i.length-1))?s+i+s:i}}};if(b.RECORD_SEP=String.fromCharCode(30),b.UNIT_SEP=String.fromCharCode(31),b.BYTE_ORDER_MARK="﻿",b.BAD_DELIMITERS=["","
+",'"',b.BYTE_ORDER_MARK],b.WORKERS_SUPPORTED=!n&&!!f.Worker,b.NODE_STREAM_INPUT=1,b.LocalChunkSize=10485760,b.RemoteChunkSize=5242880,b.DefaultDelimiter=",",b.Parser=E,b.ParserHandle=r,b.NetworkStreamer=l,b.FileStreamer=c,b.StringStreamer=p,b.ReadableStreamStreamer=g,f.jQuery){var d=f.jQuery;d.fn.parse=function(o){var r=o.config||{},u=[];return this.each(function(e){if(!("INPUT"===d(this).prop("tagName").toUpperCase()&&"file"===d(this).attr("type").toLowerCase()&&f.FileReader)||!this.files||0===this.files.length)return!0;for(var t=0;t<this.files.length;t++)u.push({file:this.files[t],inputElem:this,instanceConfig:d.extend({},r)})}),e(),this;function e(){if(0!==u.length){var e,t,r,i,n=u[0];if(J(o.before)){var s=o.before(n.file,n.inputElem);if("object"==typeof s){if("abort"===s.action)return e="AbortError",t=n.file,r=n.inputElem,i=s.reason,void(J(o.error)&&o.error({name:e},t,r,i));if("skip"===s.action)return void h();"object"==typeof s.config&&(n.instanceConfig=d.extend(n.instanceConfig,s.config))}else if("skip"===s)return void h()}var a=n.instanceConfig.complete;n.instanceConfig.complete=function(e){J(a)&&a(e,n.file,n.inputElem),h()},b.parse(n.file,n.instanceConfig)}else J(o.complete)&&o.complete()}function h(){u.splice(0,1),e()}}}function h(e){this._handle=null,this._finished=!1,this._completed=!1,this._halted=!1,this._input=null,this._baseIndex=0,this._partialLine="",this._rowCount=0,this._start=0,this._nextChunk=null,this.isFirstChunk=!0,this._completeResults={data:[],errors:[],meta:{}},function(e){var t=w(e);t.chunkSize=parseInt(t.chunkSize),e.step||e.chunk||(t.chunkSize=null);this._handle=new r(t),(this._handle.streamer=this)._config=t}.call(this,e),this.parseChunk=function(e,t){if(this.isFirstChunk&&J(this._config.beforeFirstChunk)){var r=this._config.beforeFirstChunk(e);void 0!==r&&(e=r)}this.isFirstChunk=!1,this._halted=!1;var i=this._partialLine+e;this._partialLine="";var n=this._handle.parse(i,this._baseIndex,!this._finished);if(!this._handle.paused()&&!this._handle.aborted()){var s=n.meta.cursor;this._finished||(this._partialLine=i.substring(s-this._baseIndex),this._baseIndex=s),n&&n.data&&(this._rowCount+=n.data.length);var a=this._finished||this._config.preview&&this._rowCount>=this._config.preview;if(o)f.postMessage({results:n,workerId:b.WORKER_ID,finished:a});else if(J(this._config.chunk)&&!t){if(this._config.chunk(n,this._handle),this._handle.paused()||this._handle.aborted())return void(this._halted=!0);n=void 0,this._completeResults=void 0}return this._config.step||this._config.chunk||(this._completeResults.data=this._completeResults.data.concat(n.data),this._completeResults.errors=this._completeResults.errors.concat(n.errors),this._completeResults.meta=n.meta),this._completed||!a||!J(this._config.complete)||n&&n.meta.aborted||(this._config.complete(this._completeResults,this._input),this._completed=!0),a||n&&n.meta.paused||this._nextChunk(),n}this._halted=!0},this._sendError=function(e){J(this._config.error)?this._config.error(e):o&&this._config.error&&f.postMessage({workerId:b.WORKER_ID,error:e,finished:!1})}}function l(e){var i;(e=e||{}).chunkSize||(e.chunkSize=b.RemoteChunkSize),h.call(this,e),this._nextChunk=n?function(){this._readChunk(),this._chunkLoaded()}:function(){this._readChunk()},this.stream=function(e){this._input=e,this._nextChunk()},this._readChunk=function(){if(this._finished)this._chunkLoaded();else{if(i=new XMLHttpRequest,this._config.withCredentials&&(i.withCredentials=this._config.withCredentials),n||(i.onload=v(this._chunkLoaded,this),i.onerror=v(this._chunkError,this)),i.open(this._config.downloadRequestBody?"POST":"GET",this._input,!n),this._config.downloadRequestHeaders){var e=this._config.downloadRequestHeaders;for(var t in e)i.setRequestHeader(t,e[t])}if(this._config.chunkSize){var r=this._start+this._config.chunkSize-1;i.setRequestHeader("Range","bytes="+this._start+"-"+r)}try{i.send(this._config.downloadRequestBody)}catch(e){this._chunkError(e.message)}n&&0===i.status&&this._chunkError()}},this._chunkLoaded=function(){4===i.readyState&&(i.status<200||400<=i.status?this._chunkError():(this._start+=this._config.chunkSize?this._config.chunkSize:i.responseText.length,this._finished=!this._config.chunkSize||this._start>=function(e){var t=e.getResponseHeader("Content-Range");if(null===t)return-1;return parseInt(t.substring(t.lastIndexOf("/")+1))}(i),this.parseChunk(i.responseText)))},this._chunkError=function(e){var t=i.statusText||e;this._sendError(new Error(t))}}function c(e){var i,n;(e=e||{}).chunkSize||(e.chunkSize=b.LocalChunkSize),h.call(this,e);var s="undefined"!=typeof FileReader;this.stream=function(e){this._input=e,n=e.slice||e.webkitSlice||e.mozSlice,s?((i=new FileReader).onload=v(this._chunkLoaded,this),i.onerror=v(this._chunkError,this)):i=new FileReaderSync,this._nextChunk()},this._nextChunk=function(){this._finished||this._config.preview&&!(this._rowCount<this._config.preview)||this._readChunk()},this._readChunk=function(){var e=this._input;if(this._config.chunkSize){var t=Math.min(this._start+this._config.chunkSize,this._input.size);e=n.call(e,this._start,t)}var r=i.readAsText(e,this._config.encoding);s||this._chunkLoaded({target:{result:r}})},this._chunkLoaded=function(e){this._start+=this._config.chunkSize,this._finished=!this._config.chunkSize||this._start>=this._input.size,this.parseChunk(e.target.result)},this._chunkError=function(){this._sendError(i.error)}}function p(e){var r;h.call(this,e=e||{}),this.stream=function(e){return r=e,this._nextChunk()},this._nextChunk=function(){if(!this._finished){var e,t=this._config.chunkSize;return t?(e=r.substring(0,t),r=r.substring(t)):(e=r,r=""),this._finished=!r,this.parseChunk(e)}}}function g(e){h.call(this,e=e||{});var t=[],r=!0,i=!1;this.pause=function(){h.prototype.pause.apply(this,arguments),this._input.pause()},this.resume=function(){h.prototype.resume.apply(this,arguments),this._input.resume()},this.stream=function(e){this._input=e,this._input.on("data",this._streamData),this._input.on("end",this._streamEnd),this._input.on("error",this._streamError)},this._checkIsFinished=function(){i&&1===t.length&&(this._finished=!0)},this._nextChunk=function(){this._checkIsFinished(),t.length?this.parseChunk(t.shift()):r=!0},this._streamData=v(function(e){try{t.push("string"==typeof e?e:e.toString(this._config.encoding)),r&&(r=!1,this._checkIsFinished(),this.parseChunk(t.shift()))}catch(e){this._streamError(e)}},this),this._streamError=v(function(e){this._streamCleanUp(),this._sendError(e)},this),this._streamEnd=v(function(){this._streamCleanUp(),i=!0,this._streamData("")},this),this._streamCleanUp=v(function(){this._input.removeListener("data",this._streamData),this._input.removeListener("end",this._streamEnd),this._input.removeListener("error",this._streamError)},this)}function r(m){var a,o,u,i=Math.pow(2,53),n=-i,s=/^\s*-?(\d+\.?|\.\d+|\d+\.\d+)([eE][-+]?\d+)?\s*$/,h=/^((\d{4}-[01]\d-[0-3]\dT[0-2]\d:[0-5]\d:[0-5]\d\.\d+([+-][0-2]\d:[0-5]\d|Z))|(\d{4}-[01]\d-[0-3]\dT[0-2]\d:[0-5]\d:[0-5]\d([+-][0-2]\d:[0-5]\d|Z))|(\d{4}-[01]\d-[0-3]\dT[0-2]\d:[0-5]\d([+-][0-2]\d:[0-5]\d|Z)))$/,t=this,r=0,f=0,d=!1,e=!1,l=[],c={data:[],errors:[],meta:{}};if(J(m.step)){var p=m.step;m.step=function(e){if(c=e,_())g();else{if(g(),0===c.data.length)return;r+=e.data.length,m.preview&&r>m.preview?o.abort():(c.data=c.data[0],p(c,t))}}}function y(e){return"greedy"===m.skipEmptyLines?""===e.join("").trim():1===e.length&&0===e[0].length}function g(){return c&&u&&(k("Delimiter","UndetectableDelimiter","Unable to auto-detect delimiting character; defaulted to '"+b.DefaultDelimiter+"'"),u=!1),m.skipEmptyLines&&(c.data=c.data.filter(function(e){return!y(e)})),_()&&function(){if(!c)return;function e(e,t){J(m.transformHeader)&&(e=m.transformHeader(e,t)),l.push(e)}if(Array.isArray(c.data[0])){for(var t=0;_()&&t<c.data.length;t++)c.data[t].forEach(e);c.data.splice(0,1)}else c.data.forEach(e)}(),function(){if(!c||!m.header&&!m.dynamicTyping&&!m.transform)return c;function e(e,t){var r,i=m.header?{}:[];for(r=0;r<e.length;r++){var n=r,s=e[r];m.header&&(n=r>=l.length?"__parsed_extra":l[r]),m.transform&&(s=m.transform(s,n)),s=v(n,s),"__parsed_extra"===n?(i[n]=i[n]||[],i[n].push(s)):i[n]=s}return m.header&&(r>l.length?k("FieldMismatch","TooManyFields","Too many fields: expected "+l.length+" fields but parsed "+r,f+t):r<l.length&&k("FieldMismatch","TooFewFields","Too few fields: expected "+l.length+" fields but parsed "+r,f+t)),i}var t=1;!c.data.length||Array.isArray(c.data[0])?(c.data=c.data.map(e),t=c.data.length):c.data=e(c.data,0);m.header&&c.meta&&(c.meta.fields=l);return f+=t,c}()}function _(){return m.header&&0===l.length}function v(e,t){return r=e,m.dynamicTypingFunction&&void 0===m.dynamicTyping[r]&&(m.dynamicTyping[r]=m.dynamicTypingFunction(r)),!0===(m.dynamicTyping[r]||m.dynamicTyping)?"true"===t||"TRUE"===t||"false"!==t&&"FALSE"!==t&&(function(e){if(s.test(e)){var t=parseFloat(e);if(n<t&&t<i)return!0}return!1}(t)?parseFloat(t):h.test(t)?new Date(t):""===t?null:t):t;var r}function k(e,t,r,i){var n={type:e,code:t,message:r};void 0!==i&&(n.row=i),c.errors.push(n)}this.parse=function(e,t,r){var i=m.quoteChar||'"';if(m.newline||(m.newline=function(e,t){e=e.substring(0,1048576);var r=new RegExp(Q(t)+"([^]*?)"+Q(t),"gm"),i=(e=e.replace(r,"")).split(""),n=e.split("
+"),s=1<n.length&&n[0].length<i[0].length;if(1===i.length||s)return"
+";for(var a=0,o=0;o<i.length;o++)"
+"===i[o][0]&&a++;return a>=i.length/2?"
+":""}(e,i)),u=!1,m.delimiter)J(m.delimiter)&&(m.delimiter=m.delimiter(e),c.meta.delimiter=m.delimiter);else{var n=function(e,t,r,i,n){var s,a,o,u;n=n||[",","	","|",";",b.RECORD_SEP,b.UNIT_SEP];for(var h=0;h<n.length;h++){var f=n[h],d=0,l=0,c=0;o=void 0;for(var p=new E({comments:i,delimiter:f,newline:t,preview:10}).parse(e),g=0;g<p.data.length;g++)if(r&&y(p.data[g]))c++;else{var _=p.data[g].length;l+=_,void 0!==o?0<_&&(d+=Math.abs(_-o),o=_):o=_}0<p.data.length&&(l/=p.data.length-c),(void 0===a||d<=a)&&(void 0===u||u<l)&&1.99<l&&(a=d,s=f,u=l)}return{successful:!!(m.delimiter=s),bestDelimiter:s}}(e,m.newline,m.skipEmptyLines,m.comments,m.delimitersToGuess);n.successful?m.delimiter=n.bestDelimiter:(u=!0,m.delimiter=b.DefaultDelimiter),c.meta.delimiter=m.delimiter}var s=w(m);return m.preview&&m.header&&s.preview++,a=e,o=new E(s),c=o.parse(a,t,r),g(),d?{meta:{paused:!0}}:c||{meta:{paused:!1}}},this.paused=function(){return d},this.pause=function(){d=!0,o.abort(),a=J(m.chunk)?"":a.substring(o.getCharIndex())},this.resume=function(){t.streamer._halted?(d=!1,t.streamer.parseChunk(a,!0)):setTimeout(t.resume,3)},this.aborted=function(){return e},this.abort=function(){e=!0,o.abort(),c.meta.aborted=!0,J(m.complete)&&m.complete(c),a=""}}function Q(e){return e.replace(/[.*+?^${}()|[\]\]/g,"\$&")}function E(j){var z,M=(j=j||{}).delimiter,P=j.newline,U=j.comments,q=j.step,N=j.preview,B=j.fastMode,K=z=void 0===j.quoteChar||null===j.quoteChar?'"':j.quoteChar;if(void 0!==j.escapeChar&&(K=j.escapeChar),("string"!=typeof M||-1<b.BAD_DELIMITERS.indexOf(M))&&(M=","),U===M)throw new Error("Comment character same as delimiter");!0===U?U="#":("string"!=typeof U||-1<b.BAD_DELIMITERS.indexOf(U))&&(U=!1),"
+"!==P&&""!==P&&"
+"!==P&&(P="
+");var W=0,H=!1;this.parse=function(i,t,r){if("string"!=typeof i)throw new Error("Input must be a string");var n=i.length,e=M.length,s=P.length,a=U.length,o=J(q),u=[],h=[],f=[],d=W=0;if(!i)return L();if(j.header&&!t){var l=i.split(P)[0].split(M),c=[],p={},g=!1;for(var _ in l){var m=l[_];J(j.transformHeader)&&(m=j.transformHeader(m,_));var y=m,v=p[m]||0;for(0<v&&(g=!0,y=m+"_"+v),p[m]=v+1;c.includes(y);)y=y+"_"+v;c.push(y)}if(g){var k=i.split(P);k[0]=c.join(M),i=k.join(P)}}if(B||!1!==B&&-1===i.indexOf(z)){for(var b=i.split(P),E=0;E<b.length;E++){if(f=b[E],W+=f.length,E!==b.length-1)W+=P.length;else if(r)return L();if(!U||f.substring(0,a)!==U){if(o){if(u=[],I(f.split(M)),F(),H)return L()}else I(f.split(M));if(N&&N<=E)return u=u.slice(0,N),L(!0)}}return L()}for(var w=i.indexOf(M,W),R=i.indexOf(P,W),C=new RegExp(Q(K)+Q(z),"g"),S=i.indexOf(z,W);;)if(i[W]!==z)if(U&&0===f.length&&i.substring(W,W+a)===U){if(-1===R)return L();W=R+s,R=i.indexOf(P,W),w=i.indexOf(M,W)}else if(-1!==w&&(w<R||-1===R))f.push(i.substring(W,w)),W=w+e,w=i.indexOf(M,W);else{if(-1===R)break;if(f.push(i.substring(W,R)),D(R+s),o&&(F(),H))return L();if(N&&u.length>=N)return L(!0)}else for(S=W,W++;;){if(-1===(S=i.indexOf(z,S+1)))return r||h.push({type:"Quotes",code:"MissingQuotes",message:"Quoted field unterminated",row:u.length,index:W}),T();if(S===n-1)return T(i.substring(W,S).replace(C,z));if(z!==K||i[S+1]!==K){if(z===K||0===S||i[S-1]!==K){-1!==w&&w<S+1&&(w=i.indexOf(M,S+1)),-1!==R&&R<S+1&&(R=i.indexOf(P,S+1));var O=A(-1===R?w:Math.min(w,R));if(i.substr(S+1+O,e)===M){f.push(i.substring(W,S).replace(C,z)),i[W=S+1+O+e]!==z&&(S=i.indexOf(z,W)),w=i.indexOf(M,W),R=i.indexOf(P,W);break}var x=A(R);if(i.substring(S+1+x,S+1+x+s)===P){if(f.push(i.substring(W,S).replace(C,z)),D(S+1+x+s),w=i.indexOf(M,W),S=i.indexOf(z,W),o&&(F(),H))return L();if(N&&u.length>=N)return L(!0);break}h.push({type:"Quotes",code:"InvalidQuotes",message:"Trailing quote on quoted field is malformed",row:u.length,index:W}),S++}}else S++}return T();function I(e){u.push(e),d=W}function A(e){var t=0;if(-1!==e){var r=i.substring(S+1,e);r&&""===r.trim()&&(t=r.length)}return t}function T(e){return r||(void 0===e&&(e=i.substring(W)),f.push(e),W=n,I(f),o&&F()),L()}function D(e){W=e,I(f),f=[],R=i.indexOf(P,W)}function L(e){return{data:u,errors:h,meta:{delimiter:M,linebreak:P,aborted:H,truncated:!!e,cursor:d+(t||0)}}}function F(){q(L()),u=[],h=[]}},this.abort=function(){H=!0},this.getCharIndex=function(){return W}}function _(e){var t=e.data,r=a[t.workerId],i=!1;if(t.error)r.userError(t.error,t.file);else if(t.results&&t.results.data){var n={abort:function(){i=!0,m(t.workerId,{data:[],errors:[],meta:{aborted:!0}})},pause:y,resume:y};if(J(r.userStep)){for(var s=0;s<t.results.data.length&&(r.userStep({data:t.results.data[s],errors:t.results.errors,meta:t.results.meta},n),!i);s++);delete t.results}else J(r.userChunk)&&(r.userChunk(t.results,n,t.file),delete t.results)}t.finished&&!i&&m(t.workerId,t.results)}function m(e,t){var r=a[e];J(r.userComplete)&&r.userComplete(t),r.terminate(),delete a[e]}function y(){throw new Error("Not implemented.")}function w(e){if("object"!=typeof e||null===e)return e;var t=Array.isArray(e)?[]:{};for(var r in e)t[r]=w(e[r]);return t}function v(e,t){return function(){e.apply(t,arguments)}}function J(e){return"function"==typeof e}return o&&(f.onmessage=function(e){var t=e.data;void 0===b.WORKER_ID&&t&&(b.WORKER_ID=t.workerId);if("string"==typeof t.input)f.postMessage({workerId:b.WORKER_ID,results:b.parse(t.input,t.config),finished:!0});else if(f.File&&t.input instanceof File||t.input instanceof Object){var r=b.parse(t.input,t.config);r&&f.postMessage({workerId:b.WORKER_ID,results:r,finished:!0})}}),(l.prototype=Object.create(h.prototype)).constructor=l,(c.prototype=Object.create(h.prototype)).constructor=c,(p.prototype=Object.create(p.prototype)).constructor=p,(g.prototype=Object.create(h.prototype)).constructor=g,b});
 </script>
+
+  <!-- Three.js ES Module -->
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+    }
+  }
+  </script>
 
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -33,7 +54,7 @@ License: MIT
     #app { display: grid; grid-template-columns: 300px 1fr; height: 100vh; }
     #sidebar {
       background: #fff; border-right: 1px solid #e5e5e7;
-      padding: 20px; overflow-y: auto;
+      padding: 20px; overflow-y: auto; z-index: 5;
     }
     #sidebar h1 { font-size: 18px; margin-bottom: 4px; }
     #sidebar h2 {
@@ -74,9 +95,12 @@ License: MIT
     .legend-item { display: flex; align-items: center; gap: 8px; font-size: 12px; margin-bottom: 4px; }
     .legend-swatch { width: 12px; height: 12px; border-radius: 2px; }
     .legend-line { width: 16px; height: 3px; }
-    #plot { width: 100%; height: 100vh; }
+    #canvas-container {
+      position: relative; width: 100%; height: 100vh; background: #e8eaed;
+    }
+    #canvas-container canvas { display: block; width: 100%; height: 100%; }
     #loading {
-      position: absolute; top: 50%; left: calc(50% + 150px);
+      position: absolute; top: 50%; left: 50%;
       transform: translate(-50%, -50%);
       background: rgba(255,255,255,0.95); padding: 24px 32px;
       border-radius: 12px; box-shadow: 0 4px 24px rgba(0,0,0,0.12);
@@ -114,18 +138,24 @@ License: MIT
       content: '▼'; font-size: 9px; color: #6e6e73;
     }
     .collapse-toggle.collapsed::after { content: '▶'; }
+    .monitor-label {
+      font-size: 11px; font-weight: 600; color: #1d1d1f;
+      text-shadow: 0 0 3px rgba(255,255,255,0.9);
+      pointer-events: none; user-select: none;
+      background: rgba(255,255,255,0.6); padding: 1px 4px; border-radius: 3px;
+    }
   </style>
 </head>
 <body>
   <div id="app">
     <aside id="sidebar">
       <h1>Slope Monitor 3D <span id="mode-indicator">Manual</span></h1>
-      <p class="subtitle">Visualisasi pergerakan titik monitoring di topografi 3D</p>
+      <p class="subtitle">Three.js — Visualisasi pergerakan titik monitoring di topografi 3D</p>
 
       <h2 class="collapse-toggle" id="upload-section-toggle">Input Data Manual</h2>
       <div id="upload-section">
         <div class="info-box" id="upload-info">
-          Upload file DXF dan CSV untuk visualisasi. Data diproses di browser &mdash; tidak dikirim ke server.
+          Upload file DXF dan CSV. Data diproses 100% di browser.
         </div>
         <div class="file-input-group">
           <label>File DXF topografi</label>
@@ -140,20 +170,18 @@ License: MIT
 
       <h2>Topografi</h2>
       <div class="control-group">
-        <label>Transparansi: <span class="value" id="opacity-val">50%</span></label>
-        <input type="range" id="opacity" min="0" max="100" value="50" />
+        <label>Transparansi: <span class="value" id="opacity-val">90%</span></label>
+        <input type="range" id="opacity" min="0" max="100" value="90" />
       </div>
       <div class="control-group">
-        <label>Z Exaggeration: <span class="value" id="zexag-val">4×</span></label>
-        <input type="range" id="zexag" min="1" max="20" step="0.5" value="4" />
+        <label>Z Exaggeration: <span class="value" id="zexag-val">6×</span></label>
+        <input type="range" id="zexag" min="1" max="50" step="0.5" value="6" />
       </div>
 
-      <!-- Info sumber mesh -->
       <div id="mesh-source-info" style="font-size:11px; color:#86868b; margin:8px 0; padding:6px 8px; background:#f5f5f7; border-radius:6px; display:none;">
         <span id="mesh-source-label">—</span>
       </div>
 
-      <!-- Kontrol mode MESH (3DFACE direct) -->
       <div id="controls-mesh-mode" style="display:none;">
         <div class="control-group">
           <label>Max slope filter: <span class="value" id="maxslope-val">90°</span></label>
@@ -162,11 +190,10 @@ License: MIT
         <div class="control-group">
           <label>Max edge length: <span class="value" id="maxedge-val">∞ m</span></label>
           <input type="range" id="maxedge" min="5" max="500" step="5" value="500" />
-          <div style="font-size:10px; color:#86868b; margin-top:2px;">Buang triangle dengan edge > nilai ini. ∞ = tidak ada filter.</div>
+          <div style="font-size:10px; color:#86868b; margin-top:2px;">∞ = tidak ada filter.</div>
         </div>
       </div>
 
-      <!-- Kontrol mode POINT CLOUD (Delaunay) -->
       <div id="controls-points-mode" style="display:none;">
         <div class="control-group">
           <label>Voxel size: <span class="value" id="voxel-val">2 m</span></label>
@@ -223,7 +250,7 @@ License: MIT
       <h2>Legenda</h2>
       <div class="legend-item">
         <div class="legend-swatch" style="background:#2ecc71"></div>
-        <span>Aman (&le;5 mm)</span>
+        <span>Aaman (&le;5 mm)</span>
       </div>
       <div class="legend-item">
         <div class="legend-swatch" style="background:#f1c40f"></div>
@@ -255,8 +282,7 @@ License: MIT
       <div id="error-container"></div>
     </aside>
 
-    <main>
-      <div id="plot"></div>
+    <main id="canvas-container">
       <div id="loading" class="hidden">
         <div class="spinner"></div>
         <div id="status">Memuat data...</div>
@@ -264,10 +290,13 @@ License: MIT
     </main>
   </div>
 
-  <script>
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
+
     // ============================================================
     // KONFIGURASI AUTO-LOAD
-    // Ganti path ini jika nama file berbeda di repo Anda
     // ============================================================
     const AUTO_LOAD_PATHS = {
       dxf: 'data/topografi.dxf',
@@ -279,18 +308,19 @@ License: MIT
     // ============================================================
     const state = {
       mesh: null, monitoring: null,
-      rawGeometry: null,  // { kind: 'mesh'|'points', mesh?: {...}, points?: [...] }
-      opacity: 0.5, voxelSize: 2.0,
+      rawGeometry: null,
+      opacity: 0.9,
+      voxelSize: 2.0,
       showTopo: true, colorByElev: true,
       scaleH: 100, scaleV: 200,
       showH: true, showV: true, showLabels: false,
-      zExag: 4.0,   // vertical exaggeration untuk topografi
-      maxSlopeDeg: 90,       // filter slope (default 90° = tidak buang apa-apa; untuk 3DFACE biasanya tidak perlu)
-      maxEdgeLen: 1e9,       // filter edge length absolute dalam meter (default Infinity = tidak buang)
-      edgeMultiplier: 4.0,   // untuk mode point cloud (Delaunay), filter = median × multiplier
-      faceted: true,         // render faceted (bukan smooth interpolation)
-      preserveEdges: true,   // voxel downsample preserve break-lines (untuk mode point cloud)
-      dataSource: 'none',  // 'auto' | 'manual' | 'none'
+      zExag: 6.0,
+      maxSlopeDeg: 90,
+      maxEdgeLen: 1e9,
+      edgeMultiplier: 4.0,
+      faceted: true,
+      preserveEdges: true,
+      dataSource: 'none',
     };
     let dxfFile = null, csvFile = null;
 
@@ -310,40 +340,120 @@ License: MIT
     ];
 
     // ============================================================
-    // DXF PARSING
+    // THREE.JS INIT
     // ============================================================
-    // Parser yang membedakan 2 kasus:
-    // (A) DXF mengandung 3DFACE → sudah TIN (triangulated), return mesh langsung
-    //     dengan face topology UTUH (tidak perlu Delaunay ulang)
-    // (B) DXF cuma mengandung LINE/LWPOLYLINE/POLYLINE/POINT → return point cloud,
-    //     butuh voxel downsample + Delaunay di pipeline
-    //
-    // Untuk DXF Anda (output GEM4D): kasus (A) — 41k+ 3DFACE siap pakai.
+    const container = document.getElementById('canvas-container');
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0xe8eaed);
+    scene.fog = new THREE.Fog(0xe8eaed, 500, 3000);
+
+    const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 100000);
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+    renderer.setSize(container.clientWidth, container.clientHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    container.appendChild(renderer.domElement);
+
+    const labelRenderer = new CSS2DRenderer();
+    labelRenderer.setSize(container.clientWidth, container.clientHeight);
+    labelRenderer.domElement.style.position = 'absolute';
+    labelRenderer.domElement.style.top = '0px';
+    labelRenderer.domElement.style.left = '0px';
+    labelRenderer.domElement.style.width = '100%';
+    labelRenderer.domElement.style.height = '100%';
+    labelRenderer.domElement.style.pointerEvents = 'none';
+    container.appendChild(labelRenderer.domElement);
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.08;
+    controls.screenSpacePanning = false;
+
+    // --- LIGHTS (kontras tinggi untuk bench tegas) ---
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.35);
+    scene.add(ambientLight);
+    const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.35);
+    scene.add(hemiLight);
+    const dirLight = new THREE.DirectionalLight(0xffffff, 1.1);
+    dirLight.position.set(200, -400, 300); // dari utara-atas
+    dirLight.castShadow = true;
+    dirLight.shadow.mapSize.width = 2048;
+    dirLight.shadow.mapSize.height = 2048;
+    dirLight.shadow.camera.near = 10;
+    dirLight.shadow.camera.far = 5000;
+    dirLight.shadow.bias = -0.0005;
+    scene.add(dirLight);
+    const fillLight = new THREE.DirectionalLight(0xffeedd, 0.35);
+    fillLight.position.set(-200, 200, 100);
+    scene.add(fillLight);
+
+    // --- GROUPS ---
+    const topoGroup = new THREE.Group();
+    const monitorGroup = new THREE.Group();
+    scene.add(topoGroup);
+    scene.add(monitorGroup);
+
+    // --- RENDER LOOP ---
+    function animate() {
+      requestAnimationFrame(animate);
+      controls.update();
+      renderer.render(scene, camera);
+      labelRenderer.render(scene, camera);
+    }
+    animate();
+
+    window.addEventListener('resize', () => {
+      const w = container.clientWidth;
+      const h = container.clientHeight;
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+      renderer.setSize(w, h);
+      labelRenderer.setSize(w, h);
+    });
+
+    // ============================================================
+    // HELPERS
+    // ============================================================
+    function getElevationColor(z, zMin, zMax) {
+      const t = Math.max(0, Math.min(1, (z - zMin) / Math.max(zMax - zMin, 1e-6)));
+      const color = new THREE.Color();
+      if (t < 0.25) {
+        color.setRGB(0.05, 0.25 + t * 2.0, 0.55 - t * 1.2);
+      } else if (t < 0.50) {
+        color.setRGB((t - 0.25) * 3.2, 0.75, 0.25);
+      } else if (t < 0.75) {
+        color.setRGB(0.8, 0.75 - (t - 0.50) * 1.4, 0.15);
+      } else {
+        color.setRGB(0.75 + (t - 0.75) * 1.0, 0.35 - (t - 0.75) * 1.4, 0.1);
+      }
+      return color;
+    }
+
+    function exaggerateZ(z, zCenter, zExag) {
+      return (z - zCenter) * zExag + zCenter;
+    }
+
+    // ============================================================
+    // DXF PARSING (sama seperti sebelumnya)
+    // ============================================================
     function parseDxfGeometry(dxfText) {
       const parser = new window.DxfParser();
       const dxf = parser.parseSync(dxfText);
       if (!dxf || !dxf.entities || !dxf.entities.length) {
         throw new Error('DXF tidak mengandung entity yang dapat dibaca');
       }
-
-      // Pass 1: hitung entity types untuk deteksi kasus A vs B
       const typeCount = {};
       for (const e of dxf.entities) {
         typeCount[e.type] = (typeCount[e.type] || 0) + 1;
       }
       console.log('[DXF] Entity types:', typeCount);
-
       const has3DFace = (typeCount['3DFACE'] || 0) > 0;
 
       if (has3DFace) {
-        // === KASUS A: 3DFACE mesh langsung ===
-        // Bangun mesh dengan vertex deduplication untuk hemat memori.
-        // Tiap 3DFACE punya 3 atau 4 corners. Kalau 4 (quad), split jadi 2 triangles.
-        const vertexMap = new Map();  // "x,y,z" string → index
+        const vertexMap = new Map();
         const x = [], y = [], z = [];
         const iArr = [], jArr = [], kArr = [];
-
-        // Precision untuk dedup: 3 angka desimal (1mm) — cukup untuk koordinat UTM
         const P = 1000;
         function addVertex(vx, vy, vz) {
           const key = Math.round(vx * P) + ',' + Math.round(vy * P) + ',' + Math.round(vz * P);
@@ -355,31 +465,21 @@ License: MIT
           }
           return idx;
         }
-
-        let skippedFaces = 0;
-        let quadCount = 0;
-
+        let skippedFaces = 0, quadCount = 0;
         for (const entity of dxf.entities) {
           if (entity.type !== '3DFACE') continue;
           const verts = entity.vertices || [];
           if (verts.length < 3) { skippedFaces++; continue; }
-
           const v0 = verts[0], v1 = verts[1], v2 = verts[2];
           if (v0 == null || v1 == null || v2 == null) { skippedFaces++; continue; }
           const i0 = addVertex(v0.x, v0.y, v0.z || 0);
           const i1 = addVertex(v1.x, v1.y, v1.z || 0);
           const i2 = addVertex(v2.x, v2.y, v2.z || 0);
-
-          // Cek degenerate triangle (3 vertex kolinear atau sama)
           if (i0 === i1 || i1 === i2 || i0 === i2) { skippedFaces++; continue; }
-
           iArr.push(i0); jArr.push(i1); kArr.push(i2);
-
-          // Handle quad: vertex 4 berbeda dari vertex 3 → split jadi triangle kedua
           if (verts.length >= 4 && verts[3] != null) {
             const v3 = verts[3];
             const v3z = v3.z || 0;
-            // Cek apakah v3 sama dengan v2 (quad degenerate jadi triangle)
             const dx = v3.x - v2.x, dy = v3.y - v2.y, dz = v3z - (v2.z || 0);
             if (Math.abs(dx) > 1e-6 || Math.abs(dy) > 1e-6 || Math.abs(dz) > 1e-6) {
               const i3 = addVertex(v3.x, v3.y, v3z);
@@ -390,29 +490,17 @@ License: MIT
             }
           }
         }
-
-        if (iArr.length === 0) {
-          throw new Error('DXF 3DFACE ditemukan tapi semua face degenerate');
-        }
-
-        console.log(`[DXF] Kasus A (3DFACE): ${x.length.toLocaleString()} vertex unik, ${iArr.length.toLocaleString()} triangles (${quadCount} dari quad), ${skippedFaces} face di-skip`);
-
+        if (iArr.length === 0) throw new Error('DXF 3DFACE ditemukan tapi semua face degenerate');
+        console.log(`[DXF] Kasus A: ${x.length.toLocaleString()} vertex, ${iArr.length.toLocaleString()} triangles`);
         return {
-          kind: 'mesh',   // sinyal ke pipeline: skip Delaunay
+          kind: 'mesh',
           mesh: {
             x, y, z, i: iArr, j: jArr, k: kArr,
-            stats: {
-              vertexCount: x.length,
-              validTriangles: iArr.length,
-              source: '3DFACE direct',
-              quadSplit: quadCount,
-              skipped: skippedFaces,
-            },
+            stats: { vertexCount: x.length, validTriangles: iArr.length, source: '3DFACE direct', quadSplit: quadCount, skipped: skippedFaces },
           },
         };
       }
 
-      // === KASUS B: tidak ada 3DFACE, fallback ke point cloud ===
       const points = [];
       for (const entity of dxf.entities) {
         const t = entity.type;
@@ -428,38 +516,26 @@ License: MIT
           points.push([entity.position.x, entity.position.y, entity.position.z || 0]);
         }
       }
-      if (points.length === 0) {
-        throw new Error('Tidak ada geometry yang dapat diekstrak. Pastikan DXF berisi 3DFACE atau LINE/LWPOLYLINE/POLYLINE.');
-      }
-      console.log(`[DXF] Kasus B (point cloud): ${points.length.toLocaleString()} titik — akan di-Delaunay`);
-      return { kind: 'points', points: points };
+      if (points.length === 0) throw new Error('Tidak ada geometry yang dapat diekstrak.');
+      console.log(`[DXF] Kasus B: ${points.length.toLocaleString()} titik`);
+      return { kind: 'points', points };
     }
 
-    // Filter opsional untuk mesh langsung dari 3DFACE.
-    // Buang triangle dengan edge length > maxEdge atau slope > maxSlopeDeg.
-    // Default sangat longgar (tidak buang apa-apa) karena mesh dari GEM4D sudah bersih.
     function filterMesh(mesh, maxSlopeDeg, maxEdgeLen) {
-      if (maxSlopeDeg >= 90 && maxEdgeLen >= 1e9) {
-        // No filtering, return as-is
-        return mesh;
-      }
+      if (maxSlopeDeg >= 90 && maxEdgeLen >= 1e9) return mesh;
       const { x, y, z, i: iArr, j: jArr, k: kArr } = mesh;
       const newI = [], newJ = [], newK = [];
       let filteredEdge = 0, filteredSlope = 0;
-
       for (let n = 0; n < iArr.length; n++) {
         const a = iArr[n], b = jArr[n], c = kArr[n];
         const ax = x[a], ay = y[a], az = z[a];
         const bx = x[b], by = y[b], bz = z[b];
         const cx = x[c], cy = y[c], cz = z[c];
-
         const e0 = Math.hypot(bx - ax, by - ay);
         const e1 = Math.hypot(cx - bx, cy - by);
         const e2 = Math.hypot(ax - cx, ay - cy);
         const maxE = Math.max(e0, e1, e2);
-
         if (maxE > maxEdgeLen) { filteredEdge++; continue; }
-
         if (maxSlopeDeg < 90) {
           const ux = bx - ax, uy = by - ay, uz = bz - az;
           const vx = cx - ax, vy = cy - ay, vz = cz - az;
@@ -471,82 +547,45 @@ License: MIT
           const slope = Math.acos(Math.min(1, Math.max(-1, cosTheta))) * 180 / Math.PI;
           if (slope > maxSlopeDeg) { filteredSlope++; continue; }
         }
-
         newI.push(a); newJ.push(b); newK.push(c);
       }
-
-      console.log(`[Filter] Kept ${newI.length.toLocaleString()}/${iArr.length.toLocaleString()} | filtered: edge=${filteredEdge}, slope=${filteredSlope}`);
-      if (newI.length === 0) {
-        console.warn('[Filter] WARNING: semua triangle ter-filter habis. Longgarkan parameter filter.');
-      } else if (newI.length < iArr.length * 0.3) {
-        console.warn(`[Filter] WARNING: filter agresif, ${Math.round((1 - newI.length/iArr.length)*100)}% triangle dibuang.`);
-      }
-
+      console.log(`[Filter] Kept ${newI.length.toLocaleString()}/${iArr.length.toLocaleString()}`);
       return {
         x, y, z, i: newI, j: newJ, k: newK,
-        stats: {
-          ...mesh.stats,
-          validTriangles: newI.length,
-          filteredEdge, filteredSlope,
-        },
+        stats: { ...mesh.stats, validTriangles: newI.length, filteredEdge, filteredSlope },
       };
     }
 
-    // Voxel downsampling dengan opsi preserve break-lines.
-    // - Mode default (average): ambil rata-rata x,y,z per voxel → smooth tapi hilangkan detail
-    // - Mode preserveEdges: per voxel simpan titik dengan Z=min DAN Z=max (jika range Z > threshold),
-    //   sehingga break-line seperti crest/toe bench tetap ter-representasikan.
     function voxelDownsample(points, voxelSize, preserveEdges) {
       const grid = new Map();
       for (const p of points) {
         const key = Math.round(p[0] / voxelSize) + ',' + Math.round(p[1] / voxelSize);
         let cur = grid.get(key);
         if (!cur) {
-          cur = {
-            sx: p[0], sy: p[1], sz: p[2], n: 1,
-            minZ: p[2], maxZ: p[2],
-            minPt: [p[0], p[1], p[2]], maxPt: [p[0], p[1], p[2]],
-            allZ: [p[2]],
-          };
+          cur = { sx: p[0], sy: p[1], sz: p[2], n: 1, minZ: p[2], maxZ: p[2], minPt: [...p], maxPt: [...p] };
           grid.set(key, cur);
         } else {
           cur.sx += p[0]; cur.sy += p[1]; cur.sz += p[2]; cur.n += 1;
-          if (p[2] < cur.minZ) { cur.minZ = p[2]; cur.minPt = [p[0], p[1], p[2]]; }
-          if (p[2] > cur.maxZ) { cur.maxZ = p[2]; cur.maxPt = [p[0], p[1], p[2]]; }
-          cur.allZ.push(p[2]);
+          if (p[2] < cur.minZ) { cur.minZ = p[2]; cur.minPt = [...p]; }
+          if (p[2] > cur.maxZ) { cur.maxZ = p[2]; cur.maxPt = [...p]; }
         }
       }
-
       const out = [];
-      // Threshold: kalau range Z dalam 1 voxel > 30% voxel size, berarti di sana ada slope curam
-      // atau break-line — simpan kedua titik (min & max). Kalau tidak, cukup 1 titik.
-      const zRangeThreshold = voxelSize * 0.3;
-
+      const thr = voxelSize * 0.3;
       for (const c of grid.values()) {
-        if (preserveEdges && (c.maxZ - c.minZ) > zRangeThreshold && c.n >= 2) {
-          // Simpan titik paling bawah dan paling atas untuk merepresentasikan break-line
-          out.push(c.minPt);
-          out.push(c.maxPt);
-          // Kalau sample cukup banyak, tambah juga centroid agar mesh tidak terlalu jarang
-          if (c.n >= 5) {
-            out.push([c.sx / c.n, c.sy / c.n, c.sz / c.n]);
-          }
+        if (preserveEdges && (c.maxZ - c.minZ) > thr && c.n >= 2) {
+          out.push(c.minPt, c.maxPt);
+          if (c.n >= 5) out.push([c.sx / c.n, c.sy / c.n, c.sz / c.n]);
         } else {
-          // Area flat — gunakan centroid (rata-rata) seperti sebelumnya
           out.push([c.sx / c.n, c.sy / c.n, c.sz / c.n]);
         }
       }
       return out;
     }
 
-    // Triangulasi Delaunay 2D (XY) + filter segitiga berdasarkan slope dan edge length.
-    // Filter edge length sekarang menggunakan percentile-based threshold (bukan cuma median)
-    // agar distribusi titik yang tidak uniform (misal rapat di kontur, jarang di antar-kontur)
-    // tidak langsung bikin lubang besar.
     function triangulate(points, maxSlopeDeg, edgeMultiplier) {
       maxSlopeDeg = maxSlopeDeg != null ? maxSlopeDeg : 89;
       edgeMultiplier = edgeMultiplier != null ? edgeMultiplier : 4;
-
       const coords = new Float64Array(points.length * 2);
       for (let i = 0; i < points.length; i++) {
         coords[i * 2] = points[i][0];
@@ -555,22 +594,18 @@ License: MIT
       const delaunay = new window.Delaunator(coords);
       const triangles = delaunay.triangles;
       const nTri = triangles.length / 3;
-
       const edgeLengths = new Float64Array(nTri);
       const slopes = new Float64Array(nTri);
       const areas = new Float64Array(nTri);
-
       for (let i = 0; i < nTri; i++) {
         const a = triangles[i * 3], b = triangles[i * 3 + 1], c = triangles[i * 3 + 2];
         const ax = points[a][0], ay = points[a][1], az = points[a][2];
         const bx = points[b][0], by = points[b][1], bz = points[b][2];
         const cx = points[c][0], cy = points[c][1], cz = points[c][2];
-
         const e0 = Math.hypot(bx - ax, by - ay);
         const e1 = Math.hypot(cx - bx, cy - by);
         const e2 = Math.hypot(ax - cx, ay - cy);
         edgeLengths[i] = Math.max(e0, e1, e2);
-
         const ux = bx - ax, uy = by - ay, uz = bz - az;
         const vx = cx - ax, vy = cy - ay, vz = cz - az;
         const nx = uy * vz - uz * vy;
@@ -579,51 +614,42 @@ License: MIT
         const norm = Math.hypot(nx, ny, nz);
         const cosTheta = norm > 0 ? Math.abs(nz) / norm : 0;
         slopes[i] = Math.acos(Math.min(1, Math.max(-1, cosTheta))) * 180 / Math.PI;
-
         areas[i] = 0.5 * Math.abs((bx - ax) * (cy - ay) - (cx - ax) * (by - ay));
       }
-
-      // Percentile-based edge threshold: lebih robust dari "median × mult"
-      // Ambil P75 (quartile atas) sebagai baseline, bukan P50. Untuk distribusi titik
-      // tidak uniform, P75 lebih merepresentasikan "edge normal" daripada median.
       const sortedEdges = Array.from(edgeLengths).sort((a, b) => a - b);
       const p50 = sortedEdges[Math.floor(sortedEdges.length * 0.5)];
       const p75 = sortedEdges[Math.floor(sortedEdges.length * 0.75)];
-      // Gunakan P75 sebagai baseline, karena median bisa dipengaruhi oleh cluster rapat
       const baseline = Math.max(p50, p75 * 0.7);
       const maxEdge = baseline * edgeMultiplier;
-
       const validI = [], validJ = [], validK = [];
-      const validSlopes = [];  // untuk facecolor per-triangle
       for (let i = 0; i < nTri; i++) {
         if (edgeLengths[i] <= maxEdge && slopes[i] <= maxSlopeDeg && areas[i] > 0.01) {
           validI.push(triangles[i * 3]);
           validJ.push(triangles[i * 3 + 1]);
           validK.push(triangles[i * 3 + 2]);
-          validSlopes.push(slopes[i]);
         }
       }
-      if (validI.length === 0) {
-        throw new Error('Tidak ada triangle valid. Coba naikkan voxel size atau longgarkan filter.');
-      }
-
+      if (validI.length === 0) throw new Error('Tidak ada triangle valid.');
       const x = new Array(points.length), y = new Array(points.length), z = new Array(points.length);
       for (let i = 0; i < points.length; i++) {
         x[i] = points[i][0]; y[i] = points[i][1]; z[i] = points[i][2];
       }
       return {
         x, y, z, i: validI, j: validJ, k: validK,
-        faceSlopes: validSlopes,
-        stats: {
-          validTriangles: validI.length,
-          vertexCount: points.length,
-          totalTriangles: nTri,
-          filteredOut: nTri - validI.length,
-          medianEdge: p50,
-          p75Edge: p75,
-          maxEdgeUsed: maxEdge,
-        },
+        stats: { validTriangles: validI.length, vertexCount: points.length, totalTriangles: nTri, filteredOut: nTri - validI.length, medianEdge: p50, p75Edge: p75, maxEdgeUsed: maxEdge },
       };
+    }
+
+    function buildMeshFromGeometry(geom, s) {
+      if (geom.kind === 'mesh') {
+        return filterMesh(geom.mesh, s.maxSlopeDeg, s.maxEdgeLen);
+      } else {
+        const downsampled = voxelDownsample(geom.points, s.voxelSize, s.preserveEdges);
+        let mesh = triangulate(downsampled, s.maxSlopeDeg, s.edgeMultiplier);
+        mesh.stats.source = 'Delaunay (' + geom.points.length.toLocaleString() + ' pts → ' + downsampled.length.toLocaleString() + ' after voxel)';
+        if (s.maxEdgeLen < 1e9) mesh = filterMesh(mesh, 90, s.maxEdgeLen);
+        return mesh;
+      }
     }
 
     // ============================================================
@@ -644,12 +670,10 @@ License: MIT
       };
       const cols = {};
       for (const k in COLUMN_ALIASES) cols[k] = findCol(COLUMN_ALIASES[k]);
-
       const classify = (d) => {
         for (const t of THRESHOLDS) if (d <= t.max) return t;
         return THRESHOLDS[THRESHOLDS.length - 1];
       };
-
       const points = [];
       for (const row of results.data) {
         const e0 = Number(row[cols.e0]), n0 = Number(row[cols.n0]), z0 = Number(row[cols.z0]);
@@ -660,8 +684,7 @@ License: MIT
         const dispTotal = Math.hypot(dE, dN, dZ);
         const azimuth = (Math.atan2(dE, dN) * 180 / Math.PI + 360) % 360;
         points.push({
-          id: String(row[cols.id]),
-          e0, n0, z0, e1, n1, z1,
+          id: String(row[cols.id]), e0, n0, z0, e1, n1, z1,
           dE, dN, dZ, disp2D, dispTotal, azimuth,
           category: classify(dispTotal),
         });
@@ -671,232 +694,215 @@ License: MIT
     }
 
     // ============================================================
-    // FIGURE BUILDER
+    // SCENE BUILDERS
     // ============================================================
-    function buildFigure(s) {
-      const traces = [];
+    let currentMesh = null;
+    let zCenter = 0;
 
-      if (s.showTopo && s.mesh) {
-        // Untuk faceted mode, gunakan intensity per-face (1 nilai per triangle)
-        // dengan intensitymode='cell'. Ini memaksa Plotly untuk tidak interpolasi
-        // warna antar vertex, sehingga setiap facet punya warna solid sesuai
-        // elevasi rata-ratanya.
-        let intensity = undefined;
-        let intensitymode = undefined;
-        if (s.colorByElev) {
-          if (s.faceted) {
-            // Hitung Z rata-rata per triangle
-            const faceZ = new Array(s.mesh.i.length);
-            for (let k = 0; k < s.mesh.i.length; k++) {
-              faceZ[k] = (s.mesh.z[s.mesh.i[k]] + s.mesh.z[s.mesh.j[k]] + s.mesh.z[s.mesh.k[k]]) / 3;
-            }
-            intensity = faceZ;
-            intensitymode = 'cell';
-          } else {
-            intensity = s.mesh.z;
-            intensitymode = 'vertex';
-          }
+    function buildTopoMesh() {
+      // Hapus mesh lama
+      if (currentMesh) {
+        topoGroup.remove(currentMesh);
+        currentMesh.geometry.dispose();
+        currentMesh.material.dispose();
+        currentMesh = null;
+      }
+      if (!state.showTopo || !state.mesh) return;
+
+      const mesh = state.mesh;
+      const triCount = mesh.i.length;
+      const vertCount = mesh.x.length;
+
+      // Hitung Z range untuk colormap
+      let zMin = Infinity, zMax = -Infinity;
+      for (let i = 0; i < vertCount; i++) {
+        const z = mesh.z[i];
+        if (z < zMin) zMin = z;
+        if (z > zMax) zMax = z;
+      }
+      zCenter = (zMin + zMax) / 2;
+
+      const geometry = new THREE.BufferGeometry();
+
+      if (state.faceted && state.colorByElev) {
+        // Non-indexed: tiap face 3 vertex unik, warna solid per face
+        const pos = new Float32Array(triCount * 9);
+        const cols = new Float32Array(triCount * 9);
+        for (let i = 0; i < triCount; i++) {
+          const a = mesh.i[i], b = mesh.j[i], c = mesh.k[i];
+          const ax = mesh.x[a], ay = mesh.y[a], az = exaggerateZ(mesh.z[a], zCenter, state.zExag);
+          const bx = mesh.x[b], by = mesh.y[b], bz = exaggerateZ(mesh.z[b], zCenter, state.zExag);
+          const cx = mesh.x[c], cy = mesh.y[c], cz = exaggerateZ(mesh.z[c], zCenter, state.zExag);
+          const faceZ = (mesh.z[a] + mesh.z[b] + mesh.z[c]) / 3;
+          const col = getElevationColor(faceZ, zMin, zMax);
+          pos[i*9+0]=ax; pos[i*9+1]=ay; pos[i*9+2]=az;
+          pos[i*9+3]=bx; pos[i*9+4]=by; pos[i*9+5]=bz;
+          pos[i*9+6]=cx; pos[i*9+7]=cy; pos[i*9+8]=cz;
+          cols[i*9+0]=col.r; cols[i*9+1]=col.g; cols[i*9+2]=col.b;
+          cols[i*9+3]=col.r; cols[i*9+4]=col.g; cols[i*9+5]=col.b;
+          cols[i*9+6]=col.r; cols[i*9+7]=col.g; cols[i*9+8]=col.b;
         }
-
-        traces.push({
-          type: 'mesh3d',
-          x: s.mesh.x, y: s.mesh.y, z: s.mesh.z,
-          i: s.mesh.i, j: s.mesh.j, k: s.mesh.k,
-          opacity: s.opacity,
-          color: s.colorByElev ? undefined : '#bdbdbd',
-          intensity: intensity,
-          intensitymode: intensitymode,
-          colorscale: s.colorByElev ? 'Earth' : undefined,
-          showscale: false,
-          flatshading: true,  // wajib untuk tampilan faceted (tanpa normal smoothing)
-          name: 'Topografi',
-          hovertemplate: 'E: %{x:.1f}<br>N: %{y:.1f}<br>El: %{z:.1f}<extra></extra>',
-          // Lighting yang lebih kontras untuk menonjolkan tepi facet:
-          // - ambient rendah → bayangan lebih jelas
-          // - diffuse tinggi → perbedaan orientasi terlihat
-          // - roughness rendah → shading lebih tajam per face
-          lighting: s.faceted
-            ? { ambient: 0.25, diffuse: 1.0, specular: 0.1, roughness: 0.5, fresnel: 0.2 }
-            : { ambient: 0.4, diffuse: 0.8, specular: 0.1, roughness: 0.85 },
-          // lightposition dihapus agar Plotly menggunakan pencahayaan relatif default yang mengikuti sudut pandang kamera,
-        });
+        geometry.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+        geometry.setAttribute('color', new THREE.BufferAttribute(cols, 3));
+        geometry.computeVertexNormals();
+      } else if (!state.faceted && state.colorByElev) {
+        // Indexed + vertex colors (smooth)
+        const pos = new Float32Array(vertCount * 3);
+        const cols = new Float32Array(vertCount * 3);
+        for (let i = 0; i < vertCount; i++) {
+          pos[i*3+0] = mesh.x[i];
+          pos[i*3+1] = mesh.y[i];
+          pos[i*3+2] = exaggerateZ(mesh.z[i], zCenter, state.zExag);
+          const col = getElevationColor(mesh.z[i], zMin, zMax);
+          cols[i*3+0] = col.r; cols[i*3+1] = col.g; cols[i*3+2] = col.b;
+        }
+        const indices = new Uint32Array(triCount * 3);
+        for (let i = 0; i < triCount; i++) {
+          indices[i*3+0] = mesh.i[i];
+          indices[i*3+1] = mesh.j[i];
+          indices[i*3+2] = mesh.k[i];
+        }
+        geometry.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+        geometry.setAttribute('color', new THREE.BufferAttribute(cols, 3));
+        geometry.setIndex(new THREE.BufferAttribute(indices, 1));
+        geometry.computeVertexNormals();
+      } else {
+        // Indexed, tanpa vertex colors (solid color)
+        const pos = new Float32Array(vertCount * 3);
+        for (let i = 0; i < vertCount; i++) {
+          pos[i*3+0] = mesh.x[i];
+          pos[i*3+1] = mesh.y[i];
+          pos[i*3+2] = exaggerateZ(mesh.z[i], zCenter, state.zExag);
+        }
+        const indices = new Uint32Array(triCount * 3);
+        for (let i = 0; i < triCount; i++) {
+          indices[i*3+0] = mesh.i[i];
+          indices[i*3+1] = mesh.j[i];
+          indices[i*3+2] = mesh.k[i];
+        }
+        geometry.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+        geometry.setIndex(new THREE.BufferAttribute(indices, 1));
+        geometry.computeVertexNormals();
       }
 
-      if (s.monitoring) {
-        traces.push({
-          type: 'scatter3d',
-          mode: s.showLabels ? 'markers+text' : 'markers',
-          x: s.monitoring.map(p => p.e0),
-          y: s.monitoring.map(p => p.n0),
-          z: s.monitoring.map(p => p.z0),
-          text: s.monitoring.map(p => p.id),
-          textposition: 'top center',
-          textfont: { size: 9, color: '#1d1d1f' },
-          marker: {
-            size: 4,
-            color: s.monitoring.map(p => p.category.color),
-            symbol: 'circle',
-            line: { width: 0.5, color: '#1d1d1f' },
-          },
-          name: 'Titik Monitoring',
-          hovertemplate:
-            '<b>%{text}</b><br>E: %{x:.2f}<br>N: %{y:.2f}<br>El: %{z:.2f}<br>' +
-            'Total: %{customdata[0]:.1f} mm<br>Horizontal: %{customdata[1]:.1f} mm<br>' +
-            'Vertikal: %{customdata[2]:.1f} mm<br>Arah: %{customdata[3]:.0f}°<br>' +
-            '%{customdata[4]}<extra></extra>',
-          customdata: s.monitoring.map(p => [
-            p.dispTotal * 1000, p.disp2D * 1000, p.dZ * 1000,
-            p.azimuth, p.category.name,
-          ]),
-        });
+      const material = new THREE.MeshStandardMaterial({
+        color: state.colorByElev ? 0xffffff : 0x8B8B5E,
+        vertexColors: state.colorByElev,
+        transparent: true,
+        opacity: state.opacity,
+        flatShading: state.faceted,
+        roughness: state.faceted ? 0.35 : 0.65,
+        metalness: 0.1,
+        side: THREE.DoubleSide,
+      });
 
-        // ---- Helper: buat kepala panah 2D dari dua garis miring ----
-        // Tip = ujung panah (ex, ey), arah shaft = (dx, dy) normalized
-        // headLen = panjang kepala panah dalam unit world, halfAngle = rad
-        function arrowHeadLines(ex, ey, ez, dx, dy, headLen, halfAngle) {
-          // Arah berlawanan (balik dari tip ke tail)
-          const len = Math.hypot(dx, dy);
-          if (len < 1e-12) return [];
-          const nx = -dx / len, ny = -dy / len;
-          const cos = Math.cos(halfAngle), sin = Math.sin(halfAngle);
-          // Dua sayap kepala panah
-          const w1x = nx * cos - ny * sin, w1y = nx * sin + ny * cos;
-          const w2x = nx * cos + ny * sin, w2y = -nx * sin + ny * cos;
-          return [
-            ex, ey, ez, ex + w1x * headLen, ey + w1y * headLen, ez, null,
-            ex, ey, ez, ex + w2x * headLen, ey + w2y * headLen, ez, null,
-          ];
-        }
+      currentMesh = new THREE.Mesh(geometry, material);
+      currentMesh.castShadow = true;
+      currentMesh.receiveShadow = true;
+      topoGroup.add(currentMesh);
+    }
 
-        if (s.showH) {
-          const byCategory = {};
-          for (const p of s.monitoring) {
-            const k = p.category.name;
-            if (!byCategory[k]) byCategory[k] = [];
-            byCategory[k].push(p);
-          }
-          for (const catName in byCategory) {
-            const pts = byCategory[catName];
-            const color = pts[0].category.color;
-            const x = [], y = [], z = [];
-            for (const p of pts) {
-              // Shaft
-              const ex = p.e0 + p.dE * s.scaleH;
-              const ey = p.n0 + p.dN * s.scaleH;
-              const ez = p.z0;
-              x.push(p.e0, ex, null);
-              y.push(p.n0, ey, null);
-              z.push(ez, ez, null);
-
-              // Kepala panah — panjang kepala = 20% panjang shaft, tapi minimal 0.5 m
-              const shaftLen = Math.hypot(p.dE * s.scaleH, p.dN * s.scaleH);
-              const headLen = Math.max(0.5, shaftLen * 0.22);
-              const pts6 = arrowHeadLines(ex, ey, ez, p.dE * s.scaleH, p.dN * s.scaleH, headLen, 0.42);
-              for (let i = 0; i < pts6.length; i += 3) {
-                if (pts6[i] === null) { x.push(null); y.push(null); z.push(null); }
-                else { x.push(pts6[i]); y.push(pts6[i+1]); z.push(pts6[i+2]); }
-              }
-            }
-            traces.push({
-              type: 'scatter3d', mode: 'lines', x, y, z,
-              line: { color, width: 3 },
-              name: 'H-' + catName, hoverinfo: 'skip', showlegend: false,
-            });
-          }
-        }
-
-        if (s.showV) {
-          const COLOR_DOWN = '#1f5f8b', COLOR_UP = '#3498db';
-          for (const dir of ['down', 'up']) {
-            const x = [], y = [], z = [];
-            const filtered = s.monitoring.filter(p => dir === 'down' ? p.dZ < 0 : p.dZ > 0);
-            for (const p of filtered) {
-              const ez = p.z0 + p.dZ * s.scaleV;
-              // Shaft vertikal
-              x.push(p.e0, p.e0, null);
-              y.push(p.n0, p.n0, null);
-              z.push(p.z0, ez, null);
-
-              // Kepala panah vertikal — dua sayap di bidang XZ dan YZ
-              const shaftLen = Math.abs(p.dZ * s.scaleV);
-              const hLen = Math.max(0.5, shaftLen * 0.22);
-              const sign = p.dZ < 0 ? 1 : -1; // arah berlawanan
-              // Sayap di bidang XZ
-              x.push(p.e0, p.e0 + hLen * 0.7, null, p.e0, p.e0 - hLen * 0.7, null);
-              y.push(p.n0, p.n0, null, p.n0, p.n0, null);
-              z.push(ez, ez + sign * hLen * 0.7, null, ez, ez + sign * hLen * 0.7, null);
-              // Sayap di bidang YZ
-              x.push(p.e0, p.e0, null, p.e0, p.e0, null);
-              y.push(p.n0, p.n0 + hLen * 0.7, null, p.n0, p.n0 - hLen * 0.7, null);
-              z.push(ez, ez + sign * hLen * 0.7, null, ez, ez + sign * hLen * 0.7, null);
-            }
-            traces.push({
-              type: 'scatter3d', mode: 'lines', x, y, z,
-              line: { color: dir === 'down' ? COLOR_DOWN : COLOR_UP, width: 3 },
-              name: 'V-' + dir, hoverinfo: 'skip', showlegend: false,
-            });
-          }
+    function buildMonitoringObjects() {
+      // Hapus objek lama
+      while (monitorGroup.children.length > 0) {
+        const child = monitorGroup.children[0];
+        monitorGroup.remove(child);
+        if (child.geometry) child.geometry.dispose();
+        if (child.material) {
+          if (Array.isArray(child.material)) child.material.forEach(m => m.dispose());
+          else child.material.dispose();
         }
       }
+      if (!state.monitoring) return;
 
-      const allX = [], allY = [], allZ = [];
-      if (s.mesh) { allX.push(...s.mesh.x); allY.push(...s.mesh.y); allZ.push(...s.mesh.z); }
-      if (s.monitoring) {
-        for (const p of s.monitoring) { allX.push(p.e0); allY.push(p.n0); allZ.push(p.z0); }
+      const pts = state.monitoring;
+      const rx = Math.max(...pts.map(p => p.e0)) - Math.min(...pts.map(p => p.e0));
+      const ry = Math.max(...pts.map(p => p.n0)) - Math.min(...pts.map(p => p.n0));
+      const r = Math.max(rx, ry);
+      const sphereRadius = Math.max(1.0, r * 0.004);
+      const headRatio = 0.22;
+
+      const sphereGeo = new THREE.SphereGeometry(sphereRadius, 16, 16);
+
+      for (const p of pts) {
+        const zEx = exaggerateZ(p.z0, zCenter, state.zExag);
+        const origin = new THREE.Vector3(p.e0, p.n0, zEx);
+
+        // Titik monitoring (sphere)
+        const mat = new THREE.MeshStandardMaterial({ color: p.category.color, roughness: 0.4 });
+        const sphere = new THREE.Mesh(sphereGeo, mat);
+        sphere.position.copy(origin);
+        sphere.castShadow = true;
+        monitorGroup.add(sphere);
+
+        // Label
+        if (state.showLabels) {
+          const div = document.createElement('div');
+          div.className = 'monitor-label';
+          div.textContent = p.id;
+          const label = new CSS2DObject(div);
+          label.position.set(p.e0, p.n0, zEx + sphereRadius * 2);
+          monitorGroup.add(label);
+        }
+
+        // Panah horizontal
+        if (state.showH && p.disp2D > 1e-6) {
+          const dir = new THREE.Vector3(p.dE, p.dN, 0).normalize();
+          const len = p.disp2D * state.scaleH;
+          const headLen = Math.max(sphereRadius * 2, len * headRatio);
+          const headWidth = headLen * 0.5;
+          const arrow = new THREE.ArrowHelper(dir, origin, len, new THREE.Color(p.category.color), headLen, headWidth);
+          monitorGroup.add(arrow);
+        }
+
+        // Panah vertikal
+        if (state.showV && Math.abs(p.dZ) > 1e-6) {
+          const dir = new THREE.Vector3(0, 0, p.dZ > 0 ? 1 : -1);
+          const len = Math.abs(p.dZ) * state.scaleV;
+          const color = p.dZ < 0 ? 0x1f5f8b : 0x3498db;
+          const headLen = Math.max(sphereRadius * 2, len * headRatio);
+          const headWidth = headLen * 0.5;
+          const arrow = new THREE.ArrowHelper(dir, origin, len, color, headLen, headWidth);
+          monitorGroup.add(arrow);
+        }
       }
-      if (allX.length === 0) {
-        return { traces, layout: {}, config: { responsive: true } };
-      }
+    }
 
-      const minX = Math.min(...allX), maxX = Math.max(...allX);
-      const minY = Math.min(...allY), maxY = Math.max(...allY);
-      const minZ = Math.min(...allZ), maxZ = Math.max(...allZ);
-      const rx = maxX - minX;
-      const ry = maxY - minY;
-      const rz = maxZ - minZ;
+    function updateCameraTarget() {
+      if (!state.mesh) return;
+      const xs = state.mesh.x, ys = state.mesh.y;
+      const minX = Math.min(...xs), maxX = Math.max(...xs);
+      const minY = Math.min(...ys), maxY = Math.max(...ys);
+      const cx = (minX + maxX) / 2;
+      const cy = (minY + maxY) / 2;
+      const cz = exaggerateZ(zCenter, zCenter, state.zExag);
+      const span = Math.max(maxX - minX, maxY - minY);
 
-      // Padding 5% di setiap sisi agar data tidak kepotong di tepi
-      const padX = rx * 0.05, padY = ry * 0.05, padZ = rz * 0.1;
+      controls.target.set(cx, cy, cz);
+      // Kamera dari utara (y negatif), agak tinggi
+      camera.position.set(cx, cy - span * 1.4, cz + span * 0.5);
+      camera.near = span * 0.001;
+      camera.far = span * 50;
+      camera.updateProjectionMatrix();
 
-      // Exaggerate Z so topografi terlihat 3D — clamp antara 0.15 dan 0.7
-      // KRITIS: aspectratio dihitung dari range data aktual (rx, ry, rz),
-      // bukan dari nilai absolut koordinat UTM — ini yang mencegah mesh tampak flat
-      const aspectZ = Math.min(0.7, Math.max(0.15, (rz / Math.max(rx, ry)) * s.zExag));
+      // Update shadow camera
+      const d = span * 1.5;
+      dirLight.shadow.camera.left = -d;
+      dirLight.shadow.camera.right = d;
+      dirLight.shadow.camera.top = d;
+      dirLight.shadow.camera.bottom = -d;
+      dirLight.shadow.camera.updateProjectionMatrix();
+    }
 
-      return {
-        traces,
-        layout: {
-          scene: {
-            xaxis: {
-              title: 'Easting (m)',
-              range: [minX - padX, maxX + padX],  // paksa axis dari data range, bukan dari 0
-            },
-            yaxis: {
-              title: 'Northing (m)',
-              range: [minY - padY, maxY + padY],
-            },
-            zaxis: {
-              title: 'Elevasi (m)',
-              range: [minZ - padZ, maxZ + padZ],
-            },
-            aspectmode: 'manual',
-            aspectratio: { x: 1, y: ry / rx, z: aspectZ },
-            camera: { eye: { x: 1.5, y: 1.5, z: 0.9 } },
-            bgcolor: '#fafafa',
-          },
-          margin: { l: 0, r: 0, b: 0, t: 0 },
-          showlegend: false, paper_bgcolor: '#fff',
-        },
-        config: {
-          displayModeBar: true, displaylogo: false, responsive: true,
-        },
-      };
+    function rebuildScene() {
+      buildTopoMesh();
+      buildMonitoringObjects();
+      updateCameraTarget();
     }
 
     // ============================================================
-    // UI LOGIC
+    // UI & LOADING
     // ============================================================
-    const PLOT_DIV = document.getElementById('plot');
     const LOADING = document.getElementById('loading');
     const STATUS = document.getElementById('status');
     const ERROR_CONTAINER = document.getElementById('error-container');
@@ -914,63 +920,40 @@ License: MIT
 
     function updateStats() {
       if (state.mesh) {
-        document.getElementById('stat-vertices').textContent =
-          state.mesh.stats.vertexCount.toLocaleString();
-        document.getElementById('stat-triangles').textContent =
-          state.mesh.stats.validTriangles.toLocaleString();
+        document.getElementById('stat-vertices').textContent = state.mesh.stats.vertexCount.toLocaleString();
+        document.getElementById('stat-triangles').textContent = state.mesh.stats.validTriangles.toLocaleString();
       }
       if (state.monitoring) {
         document.getElementById('stat-points').textContent = state.monitoring.length;
         const maxDisp = Math.max(...state.monitoring.map(p => p.dispTotal));
         document.getElementById('stat-max-disp').textContent = (maxDisp * 1000).toFixed(1) + ' mm';
-        document.getElementById('stat-bahaya').textContent =
-          state.monitoring.filter(p => p.category.name === 'Bahaya').length;
+        document.getElementById('stat-bahaya').textContent = state.monitoring.filter(p => p.category.name === 'Bahaya').length;
       }
       document.getElementById('stat-source').textContent =
-        state.dataSource === 'auto' ? 'Auto (repo)' :
-        state.dataSource === 'manual' ? 'Upload' : '—';
+        state.dataSource === 'auto' ? 'Auto (repo)' : state.dataSource === 'manual' ? 'Upload' : '—';
     }
 
-    let renderPending = false;
-    function rerender() {
-      if (!state.mesh && !state.monitoring) return;
-      if (renderPending) return;
-      renderPending = true;
-      requestAnimationFrame(() => {
-        renderPending = false;
-        const fig = buildFigure(state);
-        Plotly.react(PLOT_DIV, fig.traces, fig.layout, fig.config);
-      });
-    }
-
-    // Toggle visibilitas kontrol UI berdasar mode geometry (mesh vs points)
-    // dan tampilkan info sumber mesh.
     function updateUIMode() {
       const meshControls = document.getElementById('controls-mesh-mode');
       const pointsControls = document.getElementById('controls-points-mode');
       const sourceInfo = document.getElementById('mesh-source-info');
       const sourceLabel = document.getElementById('mesh-source-label');
-
       if (!state.rawGeometry) {
         meshControls.style.display = 'none';
         pointsControls.style.display = 'none';
         sourceInfo.style.display = 'none';
         return;
       }
-
       sourceInfo.style.display = 'block';
       if (state.rawGeometry.kind === 'mesh') {
         meshControls.style.display = 'block';
         pointsControls.style.display = 'none';
         const m = state.rawGeometry.mesh;
-        sourceLabel.innerHTML = '<b>Mode: Direct Mesh (3DFACE)</b><br>' +
-          m.i.length.toLocaleString() + ' triangles, ' +
-          m.x.length.toLocaleString() + ' vertex unik';
+        sourceLabel.innerHTML = '<b>Mode: Direct Mesh (3DFACE)</b><br>' + m.i.length.toLocaleString() + ' triangles, ' + m.x.length.toLocaleString() + ' vertex';
       } else {
-        meshControls.style.display = 'block'; // slope & edge filter tetap relevan
+        meshControls.style.display = 'block';
         pointsControls.style.display = 'block';
-        sourceLabel.innerHTML = '<b>Mode: Point Cloud → Delaunay</b><br>' +
-          state.rawGeometry.points.length.toLocaleString() + ' titik input';
+        sourceLabel.innerHTML = '<b>Mode: Point Cloud → Delaunay</b><br>' + state.rawGeometry.points.length.toLocaleString() + ' titik input';
       }
     }
 
@@ -983,28 +966,6 @@ License: MIT
       });
     }
 
-    // Helper: bangun mesh dari geometry source (2 kasus)
-    // - kind='mesh': DXF sudah punya 3DFACE → pakai langsung, bisa di-filter opsional
-    // - kind='points': DXF cuma point/line → voxel downsample + Delaunay + filter opsional
-    function buildMeshFromGeometry(geom, s) {
-      if (geom.kind === 'mesh') {
-        // Kasus A: langsung pakai mesh dari DXF, apply filter opsional
-        return filterMesh(geom.mesh, s.maxSlopeDeg, s.maxEdgeLen);
-      } else {
-        // Kasus B: downsample + Delaunay (pipeline lama)
-        // triangulate() sudah apply slope filter + edge multiplier filter internal
-        const downsampled = voxelDownsample(geom.points, s.voxelSize, s.preserveEdges);
-        let mesh = triangulate(downsampled, s.maxSlopeDeg, s.edgeMultiplier);
-        mesh.stats.source = 'Delaunay (' + geom.points.length.toLocaleString() + ' pts → ' + downsampled.length.toLocaleString() + ' after voxel)';
-        // Apply absolute edge length filter sebagai second pass (kalau user set non-default)
-        if (s.maxEdgeLen < 1e9) {
-          mesh = filterMesh(mesh, 90, s.maxEdgeLen);  // slope sudah di-filter di triangulate, jangan double-filter
-        }
-        return mesh;
-      }
-    }
-
-    // Coba load dari repo (untuk mode GitHub Pages)
     async function tryAutoLoad() {
       LOADING.classList.remove('hidden');
       setStatus('Mencari data di repo...');
@@ -1013,53 +974,39 @@ License: MIT
           fetch(AUTO_LOAD_PATHS.csv).catch(() => null),
           fetch(AUTO_LOAD_PATHS.dxf).catch(() => null),
         ]);
-
         const csvOk = csvResp && csvResp.ok;
         const dxfOk = dxfResp && dxfResp.ok;
-
         if (!csvOk && !dxfOk) {
-          // Tidak ada file di repo, fallback ke mode manual
           setModeManual();
           LOADING.classList.add('hidden');
           return false;
         }
-
         if (csvOk) {
           setStatus('Parsing CSV dari repo...');
-          const csvText = await csvResp.text();
-          state.monitoring = parseMonitoringCsv(csvText);
+          await new Promise(r => setTimeout(r, 30));
+          state.monitoring = parseMonitoringCsv(await csvResp.text());
         }
-
         if (dxfOk) {
           const dxfText = await dxfResp.text();
-          const sizeMB = (dxfText.length / 1024 / 1024).toFixed(1);
-          setStatus('DXF dimuat (' + sizeMB + ' MB), parsing...');
+          setStatus('Parsing DXF (' + (dxfText.length / 1024 / 1024).toFixed(1) + ' MB)...');
           await new Promise(r => setTimeout(r, 30));
           state.rawGeometry = parseDxfGeometry(dxfText);
           updateUIMode();
-          if (state.rawGeometry.kind === 'mesh') {
-            setStatus('Mesh 3DFACE: ' + state.rawGeometry.mesh.i.length.toLocaleString() + ' triangles...');
-          } else {
-            setStatus('Point cloud: ' + state.rawGeometry.points.length.toLocaleString() + ' titik, triangulasi...');
-          }
           await new Promise(r => setTimeout(r, 30));
           state.mesh = buildMeshFromGeometry(state.rawGeometry, state);
           REPROCESS_BTN.style.display = 'block';
         }
-
         state.dataSource = 'auto';
         MODE_INDICATOR.textContent = 'Auto';
         MODE_INDICATOR.className = 'auto';
-        // Collapse upload section in auto mode
         UPLOAD_SECTION.classList.add('section-collapsed');
         UPLOAD_TOGGLE.classList.add('collapsed');
-
         updateStats();
-        rerender();
+        rebuildScene();
         LOADING.classList.add('hidden');
         return true;
       } catch (e) {
-        console.warn('Auto-load failed:', e.message);
+        console.warn('Auto-load failed:', e);
         setModeManual();
         LOADING.classList.add('hidden');
         return false;
@@ -1079,22 +1026,14 @@ License: MIT
         if (csvFile) {
           setStatus('Membaca CSV...');
           await new Promise(r => setTimeout(r, 30));
-          const csvText = await readFileAsText(csvFile);
-          state.monitoring = parseMonitoringCsv(csvText);
+          state.monitoring = parseMonitoringCsv(await readFileAsText(csvFile));
         }
         if (dxfFile) {
-          setStatus('Membaca DXF (' + (dxfFile.size / 1024 / 1024).toFixed(1) + ' MB)...');
+          setStatus('Membaca DXF...');
           await new Promise(r => setTimeout(r, 30));
           const dxfText = await readFileAsText(dxfFile);
-          setStatus('Parsing DXF...');
-          await new Promise(r => setTimeout(r, 30));
           state.rawGeometry = parseDxfGeometry(dxfText);
           updateUIMode();
-          if (state.rawGeometry.kind === 'mesh') {
-            setStatus('Mesh 3DFACE: ' + state.rawGeometry.mesh.i.length.toLocaleString() + ' triangles...');
-          } else {
-            setStatus('Point cloud: ' + state.rawGeometry.points.length.toLocaleString() + ' titik, triangulasi...');
-          }
           await new Promise(r => setTimeout(r, 30));
           state.mesh = buildMeshFromGeometry(state.rawGeometry, state);
           REPROCESS_BTN.style.display = 'block';
@@ -1103,7 +1042,7 @@ License: MIT
         MODE_INDICATOR.textContent = 'Manual';
         MODE_INDICATOR.className = '';
         updateStats();
-        rerender();
+        rebuildScene();
         LOADING.classList.add('hidden');
       } catch (e) {
         console.error(e);
@@ -1114,18 +1053,12 @@ License: MIT
     async function reprocessMesh() {
       if (!state.rawGeometry) return;
       LOADING.classList.remove('hidden');
-      if (state.rawGeometry.kind === 'mesh') {
-        setStatus('Re-filtering mesh: slope≤' + state.maxSlopeDeg + '°, max edge=' +
-          (state.maxEdgeLen >= 1e9 ? '∞' : state.maxEdgeLen.toFixed(0) + 'm') + '...');
-      } else {
-        setStatus('Re-processing: voxel=' + state.voxelSize + 'm, slope≤' + state.maxSlopeDeg + '°, edge×' + state.edgeMultiplier.toFixed(1) + '...');
-      }
+      setStatus('Re-processing mesh...');
       try {
         await new Promise(r => setTimeout(r, 30));
         state.mesh = buildMeshFromGeometry(state.rawGeometry, state);
-        console.log('[Mesh stats]', state.mesh.stats);
         updateStats();
-        rerender();
+        rebuildScene();
         LOADING.classList.add('hidden');
       } catch (e) {
         showError('Error: ' + e.message);
@@ -1136,27 +1069,16 @@ License: MIT
       document.getElementById('load-btn').disabled = !(dxfFile || csvFile);
     }
 
-    // Event bindings
-    document.getElementById('dxf-input').addEventListener('change', (e) => {
-      dxfFile = e.target.files[0] || null;
-      checkReady();
-    });
-    document.getElementById('csv-input').addEventListener('change', (e) => {
-      csvFile = e.target.files[0] || null;
-      checkReady();
-    });
+    document.getElementById('dxf-input').addEventListener('change', (e) => { dxfFile = e.target.files[0] || null; checkReady(); });
+    document.getElementById('csv-input').addEventListener('change', (e) => { csvFile = e.target.files[0] || null; checkReady(); });
     document.getElementById('load-btn').addEventListener('click', loadFilesManual);
     REPROCESS_BTN.addEventListener('click', reprocessMesh);
-
     UPLOAD_TOGGLE.addEventListener('click', () => {
       UPLOAD_SECTION.classList.toggle('section-collapsed');
       UPLOAD_TOGGLE.classList.toggle('collapsed');
     });
 
-    // Daftar kontrol yang mengubah struktur mesh (butuh reprocess, tidak cukup rerender).
-    // Kontrol ini hanya akan update state + label, user harus klik "Proses Ulang" untuk apply.
     const MESH_CONTROLS = new Set(['voxel', 'maxslope', 'edgemult', 'maxedge']);
-
     function wireRange(id, valId, key, suffix, transform) {
       const slider = document.getElementById(id);
       const val = document.getElementById(valId);
@@ -1164,8 +1086,7 @@ License: MIT
         const v = Number(e.target.value);
         state[key] = transform ? transform(v) : v;
         val.textContent = v + suffix;
-        // Kontrol mesh tidak auto-rerender — butuh reprocess
-        if (!MESH_CONTROLS.has(id)) rerender();
+        if (!MESH_CONTROLS.has(id)) rebuildScene();
       });
     }
     wireRange('opacity', 'opacity-val', 'opacity', '%', v => v / 100);
@@ -1176,38 +1097,24 @@ License: MIT
     wireRange('scale-h', 'scale-h-val', 'scaleH', '×');
     wireRange('scale-v', 'scale-v-val', 'scaleV', '×');
 
-    // Edge filter custom: nilai 500 (max slider) di-treat sebagai infinity
     const maxEdgeSlider = document.getElementById('maxedge');
     const maxEdgeVal = document.getElementById('maxedge-val');
     maxEdgeSlider.addEventListener('input', (e) => {
       const v = Number(e.target.value);
-      if (v >= 500) {
-        state.maxEdgeLen = 1e9;
-        maxEdgeVal.textContent = '∞ m';
-      } else {
-        state.maxEdgeLen = v;
-        maxEdgeVal.textContent = v + ' m';
-      }
+      if (v >= 500) { state.maxEdgeLen = 1e9; maxEdgeVal.textContent = '∞ m'; }
+      else { state.maxEdgeLen = v; maxEdgeVal.textContent = v + ' m'; }
     });
 
-    // Perbaiki label edgemult (pakai fixed 1 digit)
     const edgeMultSlider = document.getElementById('edgemult');
     const edgeMultVal = document.getElementById('edgemult-val');
     edgeMultSlider.addEventListener('input', (e) => {
       edgeMultVal.textContent = Number(e.target.value).toFixed(1) + '×';
     });
 
-    // Toggle preserve-edges & faceted: keduanya butuh treatment berbeda.
-    // - preserveEdges mengubah hasil downsampling → butuh reprocess
-    // - faceted hanya mengubah rendering → cukup rerender
     function wireToggle(id, key, needsReprocess) {
       document.getElementById(id).addEventListener('change', (e) => {
         state[key] = e.target.checked;
-        if (needsReprocess) {
-          // Tidak auto-reprocess (mahal); tampilkan tombol reprocess
-        } else {
-          rerender();
-        }
+        if (!needsReprocess) rebuildScene();
       });
     }
     wireToggle('show-topo', 'showTopo', false);
