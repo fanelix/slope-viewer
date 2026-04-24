@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Slope Monitor 3D — Three.js (Debug)</title>
+  <title>Slope Monitor 3D — Three.js</title>
 
   <!-- Library global via CDN (3 baris ini) -->
   <script src="lib/papaparse.min.js"></script>
@@ -62,6 +62,10 @@
       background: #f5f5f7; color: #1d1d1f; border: 1px solid #d2d2d7;
     }
     button.secondary:hover { background: #e5e5e7; }
+    button.active-view {
+      background: #166534; color: white; border: 1px solid #166534;
+    }
+    button.active-view:hover { background: #14532d; }
     #stats {
       font-size: 11px; color: #6e6e73; line-height: 1.5;
       padding: 10px; background: #f5f5f7; border-radius: 6px;
@@ -126,6 +130,31 @@
       padding: 8px; border-radius: 4px; z-index: 20;
       max-width: 250px; line-height: 1.4;
     }
+    .view-buttons {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+      margin-bottom: 8px;
+    }
+    .view-buttons button {
+      font-size: 11px;
+      padding: 6px 4px;
+    }
+    .shortcut-hint {
+      font-size: 10px;
+      color: #86868b;
+      text-align: center;
+      margin-top: 4px;
+    }
+    .controls-hint {
+      font-size: 10px;
+      color: #86868b;
+      background: #f5f5f7;
+      padding: 6px;
+      border-radius: 4px;
+      margin-top: 8px;
+      line-height: 1.4;
+    }
   </style>
 </head>
 <body>
@@ -149,6 +178,18 @@
         </div>
         <button id="load-btn" disabled>Muat &amp; Visualisasikan</button>
       </div>
+
+      <h2>📷 Preset Views</h2>
+      <div class="view-buttons">
+        <button id="view-plan" class="secondary">Plan (Atas)</button>
+        <button id="view-front" class="secondary">Front (Depan)</button>
+        <button id="view-side" class="secondary">Side (Samping)</button>
+        <button id="view-iso" class="secondary active-view">3D / Iso</button>
+      </div>
+      <div class="shortcut-hint">Keyboard: 1=Plan | 2=Front | 3=Side | 4=3D</div>
+      <button id="reset-cam-btn" class="secondary" style="margin-top:6px;">
+        Reset ke Current View
+      </button>
 
       <h2>Topografi</h2>
       <div class="control-group">
@@ -214,9 +255,6 @@
       <button id="reprocess-btn" class="secondary" style="margin-top:8px; display:none;">
         Proses Ulang dengan Parameter Baru
       </button>
-      <button id="reset-cam-btn" class="secondary" style="margin-top:8px;">
-        Reset Kamera ke Mesh
-      </button>
 
       <h2>Vektor Pergerakan</h2>
       <div class="control-group">
@@ -243,7 +281,7 @@
       <h2>Legenda</h2>
       <div class="legend-item">
         <div class="legend-swatch" style="background:#2ecc71"></div>
-        <span>Aaman (&le;5 mm)</span>
+        <span>Aman (&le;5 mm)</span>
       </div>
       <div class="legend-item">
         <div class="legend-swatch" style="background:#f1c40f"></div>
@@ -270,6 +308,14 @@
         <div class="stat-row"><span>Max disp:</span><span id="stat-max-disp">&mdash;</span></div>
         <div class="stat-row"><span>Bahaya:</span><span id="stat-bahaya">&mdash;</span></div>
         <div class="stat-row"><span>Data:</span><span id="stat-source">&mdash;</span></div>
+      </div>
+
+      <div class="controls-hint">
+        <b>Kontrol Mouse:</b><br>
+        🖱️ Kiri = Rotate (Orbit)<br>
+        🖱️ Kanan = Pan (Geser)<br>
+        🖱️ Scroll = Zoom In/Out<br>
+        ⌨️ 1/2/3/4 = Preset Views
       </div>
 
       <div id="error-container"></div>
@@ -317,6 +363,7 @@
       wireframe: false,
       showGrid: true,
       dataSource: 'none',
+      currentView: 'iso',
     };
     let dxfFile = null, csvFile = null;
 
@@ -341,8 +388,6 @@
     const container = document.getElementById('canvas-container');
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0xe8eaed);
-    // FOG DINONAKTIFKAN - penyebab umum mesh hilang
-    // scene.fog = new THREE.Fog(0xe8eaed, 500, 3000);
 
     const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 100000);
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
@@ -362,12 +407,26 @@
     labelRenderer.domElement.style.pointerEvents = 'none';
     container.appendChild(labelRenderer.domElement);
 
+    // --- ORBIT CONTROLS (diperbaiki untuk geotechnical workflow) ---
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.dampingFactor = 0.08;
-    controls.screenSpacePanning = false;
+    controls.screenSpacePanning = true; // PANNING LEBIH INTUITIF
+    controls.mouseButtons = {
+      LEFT: THREE.MOUSE.ROTATE,
+      MIDDLE: THREE.MOUSE.DOLLY,
+      RIGHT: THREE.MOUSE.PAN
+    };
+    controls.rotateSpeed = 0.6;        // Lebih lambat = lebih presisi
+    controls.panSpeed = 0.8;
+    controls.zoomSpeed = 1.0;
+    controls.minDistance = 10;
+    controls.maxDistance = 50000;
+    // Batasi rotasi agar tidak "terbalik" ke bawah tanah
+    controls.maxPolarAngle = Math.PI * 0.95; // Hampir 180 derajat
+    controls.minPolarAngle = 0.05;           // Sedikit di atas horizon
 
-    // --- LIGHTS (diperkuat untuk visibility) ---
+    // --- LIGHTS ---
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
     scene.add(ambientLight);
     const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.5);
@@ -384,7 +443,6 @@
     const fillLight = new THREE.DirectionalLight(0xffeedd, 0.4);
     fillLight.position.set(-200, -200, 100);
     scene.add(fillLight);
-    // Back light untuk memastikan mesh terlihat dari semua sisi
     const backLight = new THREE.DirectionalLight(0xffffff, 0.3);
     backLight.position.set(0, 0, -500);
     scene.add(backLight);
@@ -403,7 +461,7 @@
         const gridSize = Math.ceil(span / 50) * 50 * 2;
         const gridDiv = Math.max(20, Math.floor(gridSize / 50));
         gridHelper = new THREE.GridHelper(gridSize, gridDiv, 0x888888, 0xcccccc);
-        gridHelper.rotation.x = Math.PI / 2; // horizontal (XY plane)
+        gridHelper.rotation.x = Math.PI / 2;
         gridHelper.position.set(center.x, center.y, center.z);
         scene.add(gridHelper);
 
@@ -440,7 +498,7 @@
       controls.update();
       renderer.render(scene, camera);
       labelRenderer.render(scene, camera);
-      if (state.mesh && Math.random() < 0.02) updateDebugInfo(); // update sporadically
+      if (state.mesh && Math.random() < 0.02) updateDebugInfo();
     }
     animate();
 
@@ -452,6 +510,98 @@
       renderer.setSize(w, h);
       labelRenderer.setSize(w, h);
     });
+
+    // ============================================================
+    // PRESET VIEW SYSTEM
+    // ============================================================
+    function getMeshBoundingBox() {
+      if (!state.mesh) return null;
+      const xs = state.mesh.x, ys = state.mesh.y, zs = state.mesh.z;
+      const minX = Math.min(...xs), maxX = Math.max(...xs);
+      const minY = Math.min(...ys), maxY = Math.max(...ys);
+      const minZ = Math.min(...zs), maxZ = Math.max(...zs);
+      const cx = (minX + maxX) / 2;
+      const cy = (minY + maxY) / 2;
+      const cz = (minZ + maxZ) / 2;
+      const spanXY = Math.max(maxX - minX, maxY - minY);
+      const spanZ = maxZ - minZ;
+      return { minX, maxX, minY, maxY, minZ, maxZ, cx, cy, cz, spanXY, spanZ };
+    }
+
+    function setPresetView(viewName) {
+      const bbox = getMeshBoundingBox();
+      if (!bbox) return;
+
+      const { cx, cy, cz, spanXY, spanZ } = bbox;
+      const zExCenter = exaggerateZ(cz, cz, state.zExag);
+      const zExMax = exaggerateZ(bbox.maxZ, cz, state.zExag);
+      const zExMin = exaggerateZ(bbox.minZ, cz, state.zExag);
+      const zSpan = zExMax - zExMin;
+
+      // Distance calculation: agar mesh muat di viewport
+      const fov = camera.fov * (Math.PI / 180);
+      const distXY = spanXY / (2 * Math.tan(fov / 2)) * 1.4; // 1.4 = margin
+      const distZ = zSpan / (2 * Math.tan(fov / 2)) * 1.4;
+
+      let target, camPos, up;
+
+      switch(viewName) {
+        case 'plan':
+          // Plan View: dari atas (Z+), melihat ke bawah
+          // Di koordinat survey: X=Easting, Y=Northing, Z=Elevation
+          // Plan view = dari atas Z, melihat ke -Z
+          target = new THREE.Vector3(cx, cy, zExCenter);
+          camPos = new THREE.Vector3(cx, cy, zExMax + distXY);
+          up = new THREE.Vector3(0, 1, 0); // Northing ke atas layar
+          break;
+
+        case 'front':
+          // Front View: dari Utara (Y-), melihat ke Selatan (Y+)
+          // Mirip gambar kedua Anda: melihat bench dari depan/bawah
+          target = new THREE.Vector3(cx, cy, zExCenter);
+          camPos = new THREE.Vector3(cx, cy - distXY, zExCenter + zSpan * 0.3);
+          up = new THREE.Vector3(0, 0, 1); // Z ke atas layar
+          break;
+
+        case 'side':
+          // Side View: dari Timur (X+), melihat ke Barat (X-)
+          target = new THREE.Vector3(cx, cy, zExCenter);
+          camPos = new THREE.Vector3(cx + distXY, cy, zExCenter + zSpan * 0.3);
+          up = new THREE.Vector3(0, 0, 1); // Z ke atas layar
+          break;
+
+        case 'iso':
+        default:
+          // Isometric / 3D default: dari utara-barat-atas
+          const dist = Math.max(distXY, distZ * 2, spanXY * 1.2);
+          target = new THREE.Vector3(cx, cy, zExCenter);
+          camPos = new THREE.Vector3(cx - dist * 0.6, cy - dist * 0.8, zExCenter + dist * 0.4);
+          up = new THREE.Vector3(0, 0, 1);
+          break;
+      }
+
+      // Smooth transition (optional - bisa langsung set)
+      camera.position.copy(camPos);
+      controls.target.copy(target);
+      camera.up.copy(up);
+      camera.updateProjectionMatrix();
+      controls.update();
+
+      // Update active button state
+      state.currentView = viewName;
+      document.querySelectorAll('.view-buttons button').forEach(btn => {
+        btn.classList.remove('active-view');
+        btn.classList.add('secondary');
+      });
+      const activeBtn = document.getElementById('view-' + viewName);
+      if (activeBtn) {
+        activeBtn.classList.remove('secondary');
+        activeBtn.classList.add('active-view');
+      }
+
+      console.log(`[View] ${viewName}: cam=${camPos.x.toFixed(0)},${camPos.y.toFixed(0)},${camPos.z.toFixed(0)} target=${target.x.toFixed(0)},${target.y.toFixed(0)},${target.z.toFixed(0)}`);
+      updateDebugInfo();
+    }
 
     // ============================================================
     // HELPERS
@@ -824,8 +974,6 @@
         geometry.computeVertexNormals();
       }
 
-      // Gunakan MeshLambertMaterial untuk lighting yang lebih forgiving
-      // atau MeshStandardMaterial dengan wireframe option
       const material = state.wireframe 
         ? new THREE.MeshBasicMaterial({
             color: 0x333333,
@@ -847,7 +995,6 @@
       currentMesh.receiveShadow = true;
       topoGroup.add(currentMesh);
 
-      // Bounding box helper untuk debug
       if (boxHelper) { scene.remove(boxHelper); }
       const box = new THREE.Box3().setFromObject(currentMesh);
       boxHelper = new THREE.Box3Helper(box, 0xff0000);
@@ -915,29 +1062,19 @@
       }
     }
 
-    function getMeshBoundingBox() {
-      if (!state.mesh) return null;
-      const xs = state.mesh.x, ys = state.mesh.y, zs = state.mesh.z;
-      const minX = Math.min(...xs), maxX = Math.max(...xs);
-      const minY = Math.min(...ys), maxY = Math.max(...ys);
-      const minZ = Math.min(...zs), maxZ = Math.max(...zs);
-      return { minX, maxX, minY, maxY, minZ, maxZ, cx: (minX+maxX)/2, cy: (minY+maxY)/2, cz: (minZ+maxZ)/2, span: Math.max(maxX-minX, maxY-minY) };
-    }
-
     function updateCameraTarget() {
       const bbox = getMeshBoundingBox();
       if (!bbox) return;
 
-      const { cx, cy, cz, span, minZ, maxZ } = bbox;
-      const zExCenter = exaggerateZ(cz, cz, state.zExag); // actually = cz
-      const zExMin = exaggerateZ(minZ, cz, state.zExag);
-      const zExMax = exaggerateZ(maxZ, cz, state.zExag);
+      const { cx, cy, cz, spanXY } = bbox;
+      const zExCenter = exaggerateZ(cz, cz, state.zExag);
+      const zExMin = exaggerateZ(bbox.minZ, cz, state.zExag);
+      const zExMax = exaggerateZ(bbox.maxZ, cz, state.zExag);
       const zSpan = zExMax - zExMin;
 
       controls.target.set(cx, cy, zExCenter);
 
-      // Kamera dari arah utara-barat-laut, melihat ke tengah
-      const dist = Math.max(span * 1.5, zSpan * 2, 100);
+      const dist = Math.max(spanXY * 1.5, zSpan * 2, 100);
       camera.position.set(cx - dist * 0.6, cy - dist * 0.8, zExCenter + dist * 0.4);
 
       camera.near = Math.max(0.1, dist * 0.001);
@@ -951,14 +1088,13 @@
       dirLight.shadow.camera.bottom = -d;
       dirLight.shadow.camera.updateProjectionMatrix();
 
-      // Update helpers
-      updateHelpers(span, new THREE.Vector3(cx, cy, zExCenter));
+      updateHelpers(spanXY, new THREE.Vector3(cx, cy, zExCenter));
 
       console.log('[Camera] pos:', camera.position.x.toFixed(1), camera.position.y.toFixed(1), camera.position.z.toFixed(1), 'target:', cx.toFixed(1), cy.toFixed(1), zExCenter.toFixed(1), 'dist:', dist.toFixed(1));
     }
 
     function resetCamera() {
-      updateCameraTarget();
+      setPresetView(state.currentView);
     }
 
     function rebuildScene() {
@@ -1071,6 +1207,8 @@
         UPLOAD_TOGGLE.classList.add('collapsed');
         updateStats();
         rebuildScene();
+        // Set default view setelah load
+        setPresetView('iso');
         LOADING.classList.add('hidden');
         return true;
       } catch (e) {
@@ -1111,6 +1249,7 @@
         MODE_INDICATOR.className = '';
         updateStats();
         rebuildScene();
+        setPresetView('iso');
         LOADING.classList.add('hidden');
       } catch (e) {
         console.error(e);
@@ -1142,9 +1281,27 @@
     document.getElementById('load-btn').addEventListener('click', loadFilesManual);
     REPROCESS_BTN.addEventListener('click', reprocessMesh);
     document.getElementById('reset-cam-btn').addEventListener('click', resetCamera);
+
+    // Preset view buttons
+    document.getElementById('view-plan').addEventListener('click', () => setPresetView('plan'));
+    document.getElementById('view-front').addEventListener('click', () => setPresetView('front'));
+    document.getElementById('view-side').addEventListener('click', () => setPresetView('side'));
+    document.getElementById('view-iso').addEventListener('click', () => setPresetView('iso'));
+
     UPLOAD_TOGGLE.addEventListener('click', () => {
       UPLOAD_SECTION.classList.toggle('section-collapsed');
       UPLOAD_TOGGLE.classList.toggle('collapsed');
+    });
+
+    // Keyboard shortcuts untuk views
+    window.addEventListener('keydown', (e) => {
+      if (e.target.tagName === 'INPUT') return;
+      switch(e.key) {
+        case '1': setPresetView('plan'); break;
+        case '2': setPresetView('front'); break;
+        case '3': setPresetView('side'); break;
+        case '4': setPresetView('iso'); break;
+      }
     });
 
     const MESH_CONTROLS = new Set(['voxel', 'maxslope', 'edgemult', 'maxedge']);
