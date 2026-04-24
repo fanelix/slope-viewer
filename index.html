@@ -716,9 +716,9 @@ License: MIT
           // - diffuse tinggi → perbedaan orientasi terlihat
           // - roughness rendah → shading lebih tajam per face
           lighting: s.faceted
-            ? { ambient: 0.45, diffuse: 0.9, specular: 0.2, roughness: 0.5, fresnel: 0.1 }
-            : { ambient: 0.65, diffuse: 0.75, specular: 0.15, roughness: 0.85 },
-          lightposition: { x: 100, y: 200, z: 200 },
+            ? { ambient: 0.25, diffuse: 1.0, specular: 0.1, roughness: 0.5, fresnel: 0.2 }
+            : { ambient: 0.4, diffuse: 0.8, specular: 0.1, roughness: 0.85 },
+          // lightposition dihapus agar Plotly menggunakan pencahayaan relatif default yang mengikuti sudut pandang kamera,
         });
       }
 
