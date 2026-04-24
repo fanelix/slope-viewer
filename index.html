@@ -147,18 +147,41 @@ License: MIT
         <label>Z Exaggeration: <span class="value" id="zexag-val">4×</span></label>
         <input type="range" id="zexag" min="1" max="20" step="0.5" value="4" />
       </div>
-      <div class="control-group">
-        <label>Voxel size: <span class="value" id="voxel-val">2 m</span></label>
-        <input type="range" id="voxel" min="0.5" max="10" step="0.5" value="2" />
+
+      <!-- Info sumber mesh -->
+      <div id="mesh-source-info" style="font-size:11px; color:#86868b; margin:8px 0; padding:6px 8px; background:#f5f5f7; border-radius:6px; display:none;">
+        <span id="mesh-source-label">—</span>
       </div>
-      <div class="control-group">
-        <label>Max slope filter: <span class="value" id="maxslope-val">89°</span></label>
-        <input type="range" id="maxslope" min="45" max="89" step="1" value="89" />
+
+      <!-- Kontrol mode MESH (3DFACE direct) -->
+      <div id="controls-mesh-mode" style="display:none;">
+        <div class="control-group">
+          <label>Max slope filter: <span class="value" id="maxslope-val">90°</span></label>
+          <input type="range" id="maxslope" min="30" max="90" step="1" value="90" />
+        </div>
+        <div class="control-group">
+          <label>Max edge length: <span class="value" id="maxedge-val">∞ m</span></label>
+          <input type="range" id="maxedge" min="5" max="500" step="5" value="500" />
+          <div style="font-size:10px; color:#86868b; margin-top:2px;">Buang triangle dengan edge > nilai ini. ∞ = tidak ada filter.</div>
+        </div>
       </div>
-      <div class="control-group">
-        <label>Edge filter (× median): <span class="value" id="edgemult-val">4.0×</span></label>
-        <input type="range" id="edgemult" min="1.5" max="8" step="0.1" value="4" />
+
+      <!-- Kontrol mode POINT CLOUD (Delaunay) -->
+      <div id="controls-points-mode" style="display:none;">
+        <div class="control-group">
+          <label>Voxel size: <span class="value" id="voxel-val">2 m</span></label>
+          <input type="range" id="voxel" min="0.5" max="10" step="0.5" value="2" />
+        </div>
+        <div class="control-group">
+          <label>Edge filter (× median): <span class="value" id="edgemult-val">4.0×</span></label>
+          <input type="range" id="edgemult" min="1.5" max="8" step="0.1" value="4" />
+        </div>
+        <div class="toggle">
+          <span>Preserve break-lines</span>
+          <input type="checkbox" id="preserve-edges" checked />
+        </div>
       </div>
+
       <div class="toggle">
         <span>Tampilkan topografi</span>
         <input type="checkbox" id="show-topo" checked />
@@ -170,10 +193,6 @@ License: MIT
       <div class="toggle">
         <span>Faceted (tidak smooth)</span>
         <input type="checkbox" id="faceted" checked />
-      </div>
-      <div class="toggle">
-        <span>Preserve break-lines</span>
-        <input type="checkbox" id="preserve-edges" checked />
       </div>
       <button id="reprocess-btn" class="secondary" style="margin-top:8px; display:none;">
         Proses Ulang dengan Parameter Baru
@@ -260,16 +279,17 @@ License: MIT
     // ============================================================
     const state = {
       mesh: null, monitoring: null,
-      rawPoints: null,  // disimpan agar bisa re-voxel tanpa re-parse
+      rawGeometry: null,  // { kind: 'mesh'|'points', mesh?: {...}, points?: [...] }
       opacity: 0.5, voxelSize: 2.0,
       showTopo: true, colorByElev: true,
       scaleH: 100, scaleV: 200,
       showH: true, showV: true, showLabels: false,
       zExag: 4.0,   // vertical exaggeration untuk topografi
-      maxSlopeDeg: 89,       // filter slope segitiga (naik dari 75 → 89 agar dinding vertikal tidak hilang)
-      edgeMultiplier: 4.0,   // filter panjang edge (naik dari 3 → 4 agar lubang berkurang)
+      maxSlopeDeg: 90,       // filter slope (default 90° = tidak buang apa-apa; untuk 3DFACE biasanya tidak perlu)
+      maxEdgeLen: 1e9,       // filter edge length absolute dalam meter (default Infinity = tidak buang)
+      edgeMultiplier: 4.0,   // untuk mode point cloud (Delaunay), filter = median × multiplier
       faceted: true,         // render faceted (bukan smooth interpolation)
-      preserveEdges: true,   // voxel downsample preserve break-lines
+      preserveEdges: true,   // voxel downsample preserve break-lines (untuk mode point cloud)
       dataSource: 'none',  // 'auto' | 'manual' | 'none'
     };
     let dxfFile = null, csvFile = null;
@@ -292,12 +312,107 @@ License: MIT
     // ============================================================
     // DXF PARSING
     // ============================================================
-    function parseDxfVertices(dxfText) {
+    // Parser yang membedakan 2 kasus:
+    // (A) DXF mengandung 3DFACE → sudah TIN (triangulated), return mesh langsung
+    //     dengan face topology UTUH (tidak perlu Delaunay ulang)
+    // (B) DXF cuma mengandung LINE/LWPOLYLINE/POLYLINE/POINT → return point cloud,
+    //     butuh voxel downsample + Delaunay di pipeline
+    //
+    // Untuk DXF Anda (output GEM4D): kasus (A) — 41k+ 3DFACE siap pakai.
+    function parseDxfGeometry(dxfText) {
       const parser = new window.DxfParser();
       const dxf = parser.parseSync(dxfText);
       if (!dxf || !dxf.entities || !dxf.entities.length) {
         throw new Error('DXF tidak mengandung entity yang dapat dibaca');
       }
+
+      // Pass 1: hitung entity types untuk deteksi kasus A vs B
+      const typeCount = {};
+      for (const e of dxf.entities) {
+        typeCount[e.type] = (typeCount[e.type] || 0) + 1;
+      }
+      console.log('[DXF] Entity types:', typeCount);
+
+      const has3DFace = (typeCount['3DFACE'] || 0) > 0;
+
+      if (has3DFace) {
+        // === KASUS A: 3DFACE mesh langsung ===
+        // Bangun mesh dengan vertex deduplication untuk hemat memori.
+        // Tiap 3DFACE punya 3 atau 4 corners. Kalau 4 (quad), split jadi 2 triangles.
+        const vertexMap = new Map();  // "x,y,z" string → index
+        const x = [], y = [], z = [];
+        const iArr = [], jArr = [], kArr = [];
+
+        // Precision untuk dedup: 3 angka desimal (1mm) — cukup untuk koordinat UTM
+        const P = 1000;
+        function addVertex(vx, vy, vz) {
+          const key = Math.round(vx * P) + ',' + Math.round(vy * P) + ',' + Math.round(vz * P);
+          let idx = vertexMap.get(key);
+          if (idx === undefined) {
+            idx = x.length;
+            x.push(vx); y.push(vy); z.push(vz);
+            vertexMap.set(key, idx);
+          }
+          return idx;
+        }
+
+        let skippedFaces = 0;
+        let quadCount = 0;
+
+        for (const entity of dxf.entities) {
+          if (entity.type !== '3DFACE') continue;
+          const verts = entity.vertices || [];
+          if (verts.length < 3) { skippedFaces++; continue; }
+
+          const v0 = verts[0], v1 = verts[1], v2 = verts[2];
+          if (v0 == null || v1 == null || v2 == null) { skippedFaces++; continue; }
+          const i0 = addVertex(v0.x, v0.y, v0.z || 0);
+          const i1 = addVertex(v1.x, v1.y, v1.z || 0);
+          const i2 = addVertex(v2.x, v2.y, v2.z || 0);
+
+          // Cek degenerate triangle (3 vertex kolinear atau sama)
+          if (i0 === i1 || i1 === i2 || i0 === i2) { skippedFaces++; continue; }
+
+          iArr.push(i0); jArr.push(i1); kArr.push(i2);
+
+          // Handle quad: vertex 4 berbeda dari vertex 3 → split jadi triangle kedua
+          if (verts.length >= 4 && verts[3] != null) {
+            const v3 = verts[3];
+            const v3z = v3.z || 0;
+            // Cek apakah v3 sama dengan v2 (quad degenerate jadi triangle)
+            const dx = v3.x - v2.x, dy = v3.y - v2.y, dz = v3z - (v2.z || 0);
+            if (Math.abs(dx) > 1e-6 || Math.abs(dy) > 1e-6 || Math.abs(dz) > 1e-6) {
+              const i3 = addVertex(v3.x, v3.y, v3z);
+              if (i3 !== i0 && i3 !== i2) {
+                iArr.push(i0); jArr.push(i2); kArr.push(i3);
+                quadCount++;
+              }
+            }
+          }
+        }
+
+        if (iArr.length === 0) {
+          throw new Error('DXF 3DFACE ditemukan tapi semua face degenerate');
+        }
+
+        console.log(`[DXF] Kasus A (3DFACE): ${x.length.toLocaleString()} vertex unik, ${iArr.length.toLocaleString()} triangles (${quadCount} dari quad), ${skippedFaces} face di-skip`);
+
+        return {
+          kind: 'mesh',   // sinyal ke pipeline: skip Delaunay
+          mesh: {
+            x, y, z, i: iArr, j: jArr, k: kArr,
+            stats: {
+              vertexCount: x.length,
+              validTriangles: iArr.length,
+              source: '3DFACE direct',
+              quadSplit: quadCount,
+              skipped: skippedFaces,
+            },
+          },
+        };
+      }
+
+      // === KASUS B: tidak ada 3DFACE, fallback ke point cloud ===
       const points = [];
       for (const entity of dxf.entities) {
         const t = entity.type;
@@ -311,14 +426,70 @@ License: MIT
           for (const v of entity.vertices) points.push([v.x, v.y, v.z || 0]);
         } else if (t === 'POINT') {
           points.push([entity.position.x, entity.position.y, entity.position.z || 0]);
-        } else if (t === '3DFACE') {
-          for (const v of entity.vertices || []) points.push([v.x, v.y, v.z || 0]);
         }
       }
       if (points.length === 0) {
-        throw new Error('Tidak ada vertex yang dapat diekstrak. Pastikan DXF berisi LINE/LWPOLYLINE/POLYLINE.');
+        throw new Error('Tidak ada geometry yang dapat diekstrak. Pastikan DXF berisi 3DFACE atau LINE/LWPOLYLINE/POLYLINE.');
       }
-      return points;
+      console.log(`[DXF] Kasus B (point cloud): ${points.length.toLocaleString()} titik — akan di-Delaunay`);
+      return { kind: 'points', points: points };
+    }
+
+    // Filter opsional untuk mesh langsung dari 3DFACE.
+    // Buang triangle dengan edge length > maxEdge atau slope > maxSlopeDeg.
+    // Default sangat longgar (tidak buang apa-apa) karena mesh dari GEM4D sudah bersih.
+    function filterMesh(mesh, maxSlopeDeg, maxEdgeLen) {
+      if (maxSlopeDeg >= 90 && maxEdgeLen >= 1e9) {
+        // No filtering, return as-is
+        return mesh;
+      }
+      const { x, y, z, i: iArr, j: jArr, k: kArr } = mesh;
+      const newI = [], newJ = [], newK = [];
+      let filteredEdge = 0, filteredSlope = 0;
+
+      for (let n = 0; n < iArr.length; n++) {
+        const a = iArr[n], b = jArr[n], c = kArr[n];
+        const ax = x[a], ay = y[a], az = z[a];
+        const bx = x[b], by = y[b], bz = z[b];
+        const cx = x[c], cy = y[c], cz = z[c];
+
+        const e0 = Math.hypot(bx - ax, by - ay);
+        const e1 = Math.hypot(cx - bx, cy - by);
+        const e2 = Math.hypot(ax - cx, ay - cy);
+        const maxE = Math.max(e0, e1, e2);
+
+        if (maxE > maxEdgeLen) { filteredEdge++; continue; }
+
+        if (maxSlopeDeg < 90) {
+          const ux = bx - ax, uy = by - ay, uz = bz - az;
+          const vx = cx - ax, vy = cy - ay, vz = cz - az;
+          const nx = uy * vz - uz * vy;
+          const ny = uz * vx - ux * vz;
+          const nz = ux * vy - uy * vx;
+          const norm = Math.hypot(nx, ny, nz);
+          const cosTheta = norm > 0 ? Math.abs(nz) / norm : 0;
+          const slope = Math.acos(Math.min(1, Math.max(-1, cosTheta))) * 180 / Math.PI;
+          if (slope > maxSlopeDeg) { filteredSlope++; continue; }
+        }
+
+        newI.push(a); newJ.push(b); newK.push(c);
+      }
+
+      console.log(`[Filter] Kept ${newI.length.toLocaleString()}/${iArr.length.toLocaleString()} | filtered: edge=${filteredEdge}, slope=${filteredSlope}`);
+      if (newI.length === 0) {
+        console.warn('[Filter] WARNING: semua triangle ter-filter habis. Longgarkan parameter filter.');
+      } else if (newI.length < iArr.length * 0.3) {
+        console.warn(`[Filter] WARNING: filter agresif, ${Math.round((1 - newI.length/iArr.length)*100)}% triangle dibuang.`);
+      }
+
+      return {
+        x, y, z, i: newI, j: newJ, k: newK,
+        stats: {
+          ...mesh.stats,
+          validTriangles: newI.length,
+          filteredEdge, filteredSlope,
+        },
+      };
     }
 
     // Voxel downsampling dengan opsi preserve break-lines.
@@ -772,6 +943,37 @@ License: MIT
       });
     }
 
+    // Toggle visibilitas kontrol UI berdasar mode geometry (mesh vs points)
+    // dan tampilkan info sumber mesh.
+    function updateUIMode() {
+      const meshControls = document.getElementById('controls-mesh-mode');
+      const pointsControls = document.getElementById('controls-points-mode');
+      const sourceInfo = document.getElementById('mesh-source-info');
+      const sourceLabel = document.getElementById('mesh-source-label');
+
+      if (!state.rawGeometry) {
+        meshControls.style.display = 'none';
+        pointsControls.style.display = 'none';
+        sourceInfo.style.display = 'none';
+        return;
+      }
+
+      sourceInfo.style.display = 'block';
+      if (state.rawGeometry.kind === 'mesh') {
+        meshControls.style.display = 'block';
+        pointsControls.style.display = 'none';
+        const m = state.rawGeometry.mesh;
+        sourceLabel.innerHTML = '<b>Mode: Direct Mesh (3DFACE)</b><br>' +
+          m.i.length.toLocaleString() + ' triangles, ' +
+          m.x.length.toLocaleString() + ' vertex unik';
+      } else {
+        meshControls.style.display = 'block'; // slope & edge filter tetap relevan
+        pointsControls.style.display = 'block';
+        sourceLabel.innerHTML = '<b>Mode: Point Cloud → Delaunay</b><br>' +
+          state.rawGeometry.points.length.toLocaleString() + ' titik input';
+      }
+    }
+
     function readFileAsText(file) {
       return new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -779,6 +981,27 @@ License: MIT
         reader.onerror = () => reject(new Error('Gagal membaca file'));
         reader.readAsText(file);
       });
+    }
+
+    // Helper: bangun mesh dari geometry source (2 kasus)
+    // - kind='mesh': DXF sudah punya 3DFACE → pakai langsung, bisa di-filter opsional
+    // - kind='points': DXF cuma point/line → voxel downsample + Delaunay + filter opsional
+    function buildMeshFromGeometry(geom, s) {
+      if (geom.kind === 'mesh') {
+        // Kasus A: langsung pakai mesh dari DXF, apply filter opsional
+        return filterMesh(geom.mesh, s.maxSlopeDeg, s.maxEdgeLen);
+      } else {
+        // Kasus B: downsample + Delaunay (pipeline lama)
+        // triangulate() sudah apply slope filter + edge multiplier filter internal
+        const downsampled = voxelDownsample(geom.points, s.voxelSize, s.preserveEdges);
+        let mesh = triangulate(downsampled, s.maxSlopeDeg, s.edgeMultiplier);
+        mesh.stats.source = 'Delaunay (' + geom.points.length.toLocaleString() + ' pts → ' + downsampled.length.toLocaleString() + ' after voxel)';
+        // Apply absolute edge length filter sebagai second pass (kalau user set non-default)
+        if (s.maxEdgeLen < 1e9) {
+          mesh = filterMesh(mesh, 90, s.maxEdgeLen);  // slope sudah di-filter di triangulate, jangan double-filter
+        }
+        return mesh;
+      }
     }
 
     // Coba load dari repo (untuk mode GitHub Pages)
@@ -812,13 +1035,15 @@ License: MIT
           const sizeMB = (dxfText.length / 1024 / 1024).toFixed(1);
           setStatus('DXF dimuat (' + sizeMB + ' MB), parsing...');
           await new Promise(r => setTimeout(r, 30));
-          state.rawPoints = parseDxfVertices(dxfText);
-          setStatus('Downsampling ' + state.rawPoints.length.toLocaleString() + ' vertex...');
+          state.rawGeometry = parseDxfGeometry(dxfText);
+          updateUIMode();
+          if (state.rawGeometry.kind === 'mesh') {
+            setStatus('Mesh 3DFACE: ' + state.rawGeometry.mesh.i.length.toLocaleString() + ' triangles...');
+          } else {
+            setStatus('Point cloud: ' + state.rawGeometry.points.length.toLocaleString() + ' titik, triangulasi...');
+          }
           await new Promise(r => setTimeout(r, 30));
-          const downsampled = voxelDownsample(state.rawPoints, state.voxelSize, state.preserveEdges);
-          setStatus('Triangulasi...');
-          await new Promise(r => setTimeout(r, 30));
-          state.mesh = triangulate(downsampled, state.maxSlopeDeg, state.edgeMultiplier);
+          state.mesh = buildMeshFromGeometry(state.rawGeometry, state);
           REPROCESS_BTN.style.display = 'block';
         }
 
@@ -863,13 +1088,15 @@ License: MIT
           const dxfText = await readFileAsText(dxfFile);
           setStatus('Parsing DXF...');
           await new Promise(r => setTimeout(r, 30));
-          state.rawPoints = parseDxfVertices(dxfText);
-          setStatus('Downsampling ' + state.rawPoints.length.toLocaleString() + ' vertex...');
+          state.rawGeometry = parseDxfGeometry(dxfText);
+          updateUIMode();
+          if (state.rawGeometry.kind === 'mesh') {
+            setStatus('Mesh 3DFACE: ' + state.rawGeometry.mesh.i.length.toLocaleString() + ' triangles...');
+          } else {
+            setStatus('Point cloud: ' + state.rawGeometry.points.length.toLocaleString() + ' titik, triangulasi...');
+          }
           await new Promise(r => setTimeout(r, 30));
-          const downsampled = voxelDownsample(state.rawPoints, state.voxelSize, state.preserveEdges);
-          setStatus('Triangulasi...');
-          await new Promise(r => setTimeout(r, 30));
-          state.mesh = triangulate(downsampled, state.maxSlopeDeg, state.edgeMultiplier);
+          state.mesh = buildMeshFromGeometry(state.rawGeometry, state);
           REPROCESS_BTN.style.display = 'block';
         }
         state.dataSource = 'manual';
@@ -885,16 +1112,18 @@ License: MIT
     }
 
     async function reprocessMesh() {
-      if (!state.rawPoints) return;
+      if (!state.rawGeometry) return;
       LOADING.classList.remove('hidden');
-      setStatus('Re-processing: voxel=' + state.voxelSize + 'm, slope≤' + state.maxSlopeDeg + '°, edge×' + state.edgeMultiplier.toFixed(1) + '...');
+      if (state.rawGeometry.kind === 'mesh') {
+        setStatus('Re-filtering mesh: slope≤' + state.maxSlopeDeg + '°, max edge=' +
+          (state.maxEdgeLen >= 1e9 ? '∞' : state.maxEdgeLen.toFixed(0) + 'm') + '...');
+      } else {
+        setStatus('Re-processing: voxel=' + state.voxelSize + 'm, slope≤' + state.maxSlopeDeg + '°, edge×' + state.edgeMultiplier.toFixed(1) + '...');
+      }
       try {
         await new Promise(r => setTimeout(r, 30));
-        const downsampled = voxelDownsample(state.rawPoints, state.voxelSize, state.preserveEdges);
-        setStatus('Triangulasi ulang (' + downsampled.length.toLocaleString() + ' titik)...');
-        await new Promise(r => setTimeout(r, 30));
-        state.mesh = triangulate(downsampled, state.maxSlopeDeg, state.edgeMultiplier);
-        console.log('Mesh stats:', state.mesh.stats);
+        state.mesh = buildMeshFromGeometry(state.rawGeometry, state);
+        console.log('[Mesh stats]', state.mesh.stats);
         updateStats();
         rerender();
         LOADING.classList.add('hidden');
@@ -926,7 +1155,7 @@ License: MIT
 
     // Daftar kontrol yang mengubah struktur mesh (butuh reprocess, tidak cukup rerender).
     // Kontrol ini hanya akan update state + label, user harus klik "Proses Ulang" untuk apply.
-    const MESH_CONTROLS = new Set(['voxel', 'maxslope', 'edgemult']);
+    const MESH_CONTROLS = new Set(['voxel', 'maxslope', 'edgemult', 'maxedge']);
 
     function wireRange(id, valId, key, suffix, transform) {
       const slider = document.getElementById(id);
@@ -935,7 +1164,7 @@ License: MIT
         const v = Number(e.target.value);
         state[key] = transform ? transform(v) : v;
         val.textContent = v + suffix;
-        // Kontrol mesh (voxel, maxslope, edgemult) tidak auto-rerender — butuh reprocess
+        // Kontrol mesh tidak auto-rerender — butuh reprocess
         if (!MESH_CONTROLS.has(id)) rerender();
       });
     }
@@ -946,6 +1175,20 @@ License: MIT
     wireRange('edgemult', 'edgemult-val', 'edgeMultiplier', '×', v => v);
     wireRange('scale-h', 'scale-h-val', 'scaleH', '×');
     wireRange('scale-v', 'scale-v-val', 'scaleV', '×');
+
+    // Edge filter custom: nilai 500 (max slider) di-treat sebagai infinity
+    const maxEdgeSlider = document.getElementById('maxedge');
+    const maxEdgeVal = document.getElementById('maxedge-val');
+    maxEdgeSlider.addEventListener('input', (e) => {
+      const v = Number(e.target.value);
+      if (v >= 500) {
+        state.maxEdgeLen = 1e9;
+        maxEdgeVal.textContent = '∞ m';
+      } else {
+        state.maxEdgeLen = v;
+        maxEdgeVal.textContent = v + ' m';
+      }
+    });
 
     // Perbaiki label edgemult (pakai fixed 1 digit)
     const edgeMultSlider = document.getElementById('edgemult');
@@ -962,7 +1205,6 @@ License: MIT
         state[key] = e.target.checked;
         if (needsReprocess) {
           // Tidak auto-reprocess (mahal); tampilkan tombol reprocess
-          // User bisa klik "Proses Ulang" ketika sudah set semua
         } else {
           rerender();
         }
