@@ -5,12 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Slope Monitor 3D — Three.js</title>
 
-  <!-- External libraries (global) -->
-  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/dxf-parser@1.8.0/dist/dxf-parser.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/delaunator@5.0.1/delaunator.min.js"></script>
+  <!-- Library global via CDN (3 baris ini) -->
+<script src="lib/papaparse.min.js"></script>
+<script src="lib/dxf-parser.js"></script>
+<script src="lib/delaunator.min.js"></script>
 
-  <!-- Three.js ES Module -->
+  <!-- Three.js ES Module via importmap (tetap) -->
   <script type="importmap">
   {
     "imports": {
