@@ -3,12 +3,12 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Slope Monitor 3D — Three.js</title>
+  <title>Slope Monitor 3D — Three.js (Debug)</title>
 
   <!-- Library global via CDN (3 baris ini) -->
-<script src="lib/papaparse.min.js"></script>
-<script src="lib/dxf-parser.js"></script>
-<script src="lib/delaunator.min.js"></script>
+  <script src="lib/papaparse.min.js"></script>
+  <script src="lib/dxf-parser.js"></script>
+  <script src="lib/delaunator.min.js"></script>
 
   <!-- Three.js ES Module via importmap (tetap) -->
   <script type="importmap">
@@ -119,6 +119,13 @@
       pointer-events: none; user-select: none;
       background: rgba(255,255,255,0.6); padding: 1px 4px; border-radius: 3px;
     }
+    .debug-info {
+      position: absolute; top: 10px; right: 10px;
+      background: rgba(0,0,0,0.7); color: #0f0;
+      font-family: monospace; font-size: 11px;
+      padding: 8px; border-radius: 4px; z-index: 20;
+      max-width: 250px; line-height: 1.4;
+    }
   </style>
 </head>
 <body>
@@ -196,8 +203,19 @@
         <span>Faceted (tidak smooth)</span>
         <input type="checkbox" id="faceted" checked />
       </div>
+      <div class="toggle">
+        <span>Wireframe debug</span>
+        <input type="checkbox" id="wireframe" />
+      </div>
+      <div class="toggle">
+        <span>Tampilkan grid</span>
+        <input type="checkbox" id="show-grid" checked />
+      </div>
       <button id="reprocess-btn" class="secondary" style="margin-top:8px; display:none;">
         Proses Ulang dengan Parameter Baru
+      </button>
+      <button id="reset-cam-btn" class="secondary" style="margin-top:8px;">
+        Reset Kamera ke Mesh
       </button>
 
       <h2>Vektor Pergerakan</h2>
@@ -225,7 +243,7 @@
       <h2>Legenda</h2>
       <div class="legend-item">
         <div class="legend-swatch" style="background:#2ecc71"></div>
-        <span>Aman (&le;5 mm)</span>
+        <span>Aaman (&le;5 mm)</span>
       </div>
       <div class="legend-item">
         <div class="legend-swatch" style="background:#f1c40f"></div>
@@ -262,6 +280,7 @@
         <div class="spinner"></div>
         <div id="status">Memuat data...</div>
       </div>
+      <div class="debug-info" id="debug-info">Menunggu data...</div>
     </main>
   </div>
 
@@ -295,6 +314,8 @@
       edgeMultiplier: 4.0,
       faceted: true,
       preserveEdges: true,
+      wireframe: false,
+      showGrid: true,
       dataSource: 'none',
     };
     let dxfFile = null, csvFile = null;
@@ -320,7 +341,8 @@
     const container = document.getElementById('canvas-container');
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0xe8eaed);
-    scene.fog = new THREE.Fog(0xe8eaed, 500, 3000);
+    // FOG DINONAKTIFKAN - penyebab umum mesh hilang
+    // scene.fog = new THREE.Fog(0xe8eaed, 500, 3000);
 
     const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 100000);
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
@@ -345,13 +367,13 @@
     controls.dampingFactor = 0.08;
     controls.screenSpacePanning = false;
 
-    // --- LIGHTS (kontras tinggi untuk bench tegas) ---
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.35);
+    // --- LIGHTS (diperkuat untuk visibility) ---
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
     scene.add(ambientLight);
-    const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.35);
+    const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.5);
     scene.add(hemiLight);
-    const dirLight = new THREE.DirectionalLight(0xffffff, 1.1);
-    dirLight.position.set(200, -400, 300); // dari utara-atas
+    const dirLight = new THREE.DirectionalLight(0xffffff, 1.2);
+    dirLight.position.set(200, 400, 300);
     dirLight.castShadow = true;
     dirLight.shadow.mapSize.width = 2048;
     dirLight.shadow.mapSize.height = 2048;
@@ -359,9 +381,37 @@
     dirLight.shadow.camera.far = 5000;
     dirLight.shadow.bias = -0.0005;
     scene.add(dirLight);
-    const fillLight = new THREE.DirectionalLight(0xffeedd, 0.35);
-    fillLight.position.set(-200, 200, 100);
+    const fillLight = new THREE.DirectionalLight(0xffeedd, 0.4);
+    fillLight.position.set(-200, -200, 100);
     scene.add(fillLight);
+    // Back light untuk memastikan mesh terlihat dari semua sisi
+    const backLight = new THREE.DirectionalLight(0xffffff, 0.3);
+    backLight.position.set(0, 0, -500);
+    scene.add(backLight);
+
+    // --- HELPERS ---
+    let gridHelper = null;
+    let axesHelper = null;
+    let boxHelper = null;
+
+    function updateHelpers(span, center) {
+      if (gridHelper) { scene.remove(gridHelper); gridHelper.dispose(); }
+      if (axesHelper) { scene.remove(axesHelper); }
+      if (boxHelper) { scene.remove(boxHelper); }
+
+      if (state.showGrid && span > 0) {
+        const gridSize = Math.ceil(span / 50) * 50 * 2;
+        const gridDiv = Math.max(20, Math.floor(gridSize / 50));
+        gridHelper = new THREE.GridHelper(gridSize, gridDiv, 0x888888, 0xcccccc);
+        gridHelper.rotation.x = Math.PI / 2; // horizontal (XY plane)
+        gridHelper.position.set(center.x, center.y, center.z);
+        scene.add(gridHelper);
+
+        axesHelper = new THREE.AxesHelper(span * 0.1);
+        axesHelper.position.copy(center);
+        scene.add(axesHelper);
+      }
+    }
 
     // --- GROUPS ---
     const topoGroup = new THREE.Group();
@@ -369,12 +419,28 @@
     scene.add(topoGroup);
     scene.add(monitorGroup);
 
+    // --- DEBUG INFO ---
+    const debugInfo = document.getElementById('debug-info');
+    function updateDebugInfo() {
+      if (!state.mesh) {
+        debugInfo.textContent = 'Menunggu data...';
+        return;
+      }
+      const xs = state.mesh.x, ys = state.mesh.y, zs = state.mesh.z;
+      const minX = Math.min(...xs), maxX = Math.max(...xs);
+      const minY = Math.min(...ys), maxY = Math.max(...ys);
+      const minZ = Math.min(...zs), maxZ = Math.max(...zs);
+      const span = Math.max(maxX - minX, maxY - minY);
+      debugInfo.innerHTML = `BBox: ${minX.toFixed(0)},${minY.toFixed(0)},${minZ.toFixed(0)}<br>→ ${maxX.toFixed(0)},${maxY.toFixed(0)},${maxZ.toFixed(0)}<br>Span: ${span.toFixed(0)}m<br>Cam: ${camera.position.x.toFixed(0)},${camera.position.y.toFixed(0)},${camera.position.z.toFixed(0)}<br>Target: ${controls.target.x.toFixed(0)},${controls.target.y.toFixed(0)},${controls.target.z.toFixed(0)}`;
+    }
+
     // --- RENDER LOOP ---
     function animate() {
       requestAnimationFrame(animate);
       controls.update();
       renderer.render(scene, camera);
       labelRenderer.render(scene, camera);
+      if (state.mesh && Math.random() < 0.02) updateDebugInfo(); // update sporadically
     }
     animate();
 
@@ -677,8 +743,11 @@
     function buildTopoMesh() {
       if (currentMesh) {
         topoGroup.remove(currentMesh);
-        currentMesh.geometry.dispose();
-        currentMesh.material.dispose();
+        if (currentMesh.geometry) currentMesh.geometry.dispose();
+        if (currentMesh.material) {
+          if (Array.isArray(currentMesh.material)) currentMesh.material.forEach(m => m.dispose());
+          else currentMesh.material.dispose();
+        }
         currentMesh = null;
       }
       if (!state.showTopo || !state.mesh) return;
@@ -755,21 +824,36 @@
         geometry.computeVertexNormals();
       }
 
-      const material = new THREE.MeshStandardMaterial({
-        color: state.colorByElev ? 0xffffff : 0x8B8B5E,
-        vertexColors: state.colorByElev,
-        transparent: true,
-        opacity: state.opacity,
-        flatShading: state.faceted,
-        roughness: state.faceted ? 0.35 : 0.65,
-        metalness: 0.1,
-        side: THREE.DoubleSide,
-      });
+      // Gunakan MeshLambertMaterial untuk lighting yang lebih forgiving
+      // atau MeshStandardMaterial dengan wireframe option
+      const material = state.wireframe 
+        ? new THREE.MeshBasicMaterial({
+            color: 0x333333,
+            wireframe: true,
+            transparent: true,
+            opacity: 0.9,
+          })
+        : new THREE.MeshLambertMaterial({
+            color: state.colorByElev ? 0xffffff : 0x8B8B5E,
+            vertexColors: state.colorByElev,
+            transparent: true,
+            opacity: state.opacity,
+            flatShading: state.faceted,
+            side: THREE.DoubleSide,
+          });
 
       currentMesh = new THREE.Mesh(geometry, material);
       currentMesh.castShadow = true;
       currentMesh.receiveShadow = true;
       topoGroup.add(currentMesh);
+
+      // Bounding box helper untuk debug
+      if (boxHelper) { scene.remove(boxHelper); }
+      const box = new THREE.Box3().setFromObject(currentMesh);
+      boxHelper = new THREE.Box3Helper(box, 0xff0000);
+      scene.add(boxHelper);
+
+      console.log('[Mesh] BBox:', box.min.x.toFixed(1), box.min.y.toFixed(1), box.min.z.toFixed(1), '→', box.max.x.toFixed(1), box.max.y.toFixed(1), box.max.z.toFixed(1));
     }
 
     function buildMonitoringObjects() {
@@ -795,7 +879,7 @@
       for (const p of pts) {
         const zEx = exaggerateZ(p.z0, zCenter, state.zExag);
         const origin = new THREE.Vector3(p.e0, p.n0, zEx);
-        const mat = new THREE.MeshStandardMaterial({ color: p.category.color, roughness: 0.4 });
+        const mat = new THREE.MeshLambertMaterial({ color: p.category.color });
         const sphere = new THREE.Mesh(sphereGeo, mat);
         sphere.position.copy(origin);
         sphere.castShadow = true;
@@ -831,34 +915,57 @@
       }
     }
 
-    function updateCameraTarget() {
-      if (!state.mesh) return;
-      const xs = state.mesh.x, ys = state.mesh.y;
+    function getMeshBoundingBox() {
+      if (!state.mesh) return null;
+      const xs = state.mesh.x, ys = state.mesh.y, zs = state.mesh.z;
       const minX = Math.min(...xs), maxX = Math.max(...xs);
       const minY = Math.min(...ys), maxY = Math.max(...ys);
-      const cx = (minX + maxX) / 2;
-      const cy = (minY + maxY) / 2;
-      const cz = exaggerateZ(zCenter, zCenter, state.zExag);
-      const span = Math.max(maxX - minX, maxY - minY);
+      const minZ = Math.min(...zs), maxZ = Math.max(...zs);
+      return { minX, maxX, minY, maxY, minZ, maxZ, cx: (minX+maxX)/2, cy: (minY+maxY)/2, cz: (minZ+maxZ)/2, span: Math.max(maxX-minX, maxY-minY) };
+    }
 
-      controls.target.set(cx, cy, cz);
-      camera.position.set(cx, cy - span * 1.4, cz + span * 0.5);
-      camera.near = span * 0.001;
-      camera.far = span * 50;
+    function updateCameraTarget() {
+      const bbox = getMeshBoundingBox();
+      if (!bbox) return;
+
+      const { cx, cy, cz, span, minZ, maxZ } = bbox;
+      const zExCenter = exaggerateZ(cz, cz, state.zExag); // actually = cz
+      const zExMin = exaggerateZ(minZ, cz, state.zExag);
+      const zExMax = exaggerateZ(maxZ, cz, state.zExag);
+      const zSpan = zExMax - zExMin;
+
+      controls.target.set(cx, cy, zExCenter);
+
+      // Kamera dari arah utara-barat-laut, melihat ke tengah
+      const dist = Math.max(span * 1.5, zSpan * 2, 100);
+      camera.position.set(cx - dist * 0.6, cy - dist * 0.8, zExCenter + dist * 0.4);
+
+      camera.near = Math.max(0.1, dist * 0.001);
+      camera.far = Math.max(10000, dist * 10);
       camera.updateProjectionMatrix();
 
-      const d = span * 1.5;
+      const d = dist * 1.2;
       dirLight.shadow.camera.left = -d;
       dirLight.shadow.camera.right = d;
       dirLight.shadow.camera.top = d;
       dirLight.shadow.camera.bottom = -d;
       dirLight.shadow.camera.updateProjectionMatrix();
+
+      // Update helpers
+      updateHelpers(span, new THREE.Vector3(cx, cy, zExCenter));
+
+      console.log('[Camera] pos:', camera.position.x.toFixed(1), camera.position.y.toFixed(1), camera.position.z.toFixed(1), 'target:', cx.toFixed(1), cy.toFixed(1), zExCenter.toFixed(1), 'dist:', dist.toFixed(1));
+    }
+
+    function resetCamera() {
+      updateCameraTarget();
     }
 
     function rebuildScene() {
       buildTopoMesh();
       buildMonitoringObjects();
       updateCameraTarget();
+      updateDebugInfo();
     }
 
     // ============================================================
@@ -1034,6 +1141,7 @@
     document.getElementById('csv-input').addEventListener('change', (e) => { csvFile = e.target.files[0] || null; checkReady(); });
     document.getElementById('load-btn').addEventListener('click', loadFilesManual);
     REPROCESS_BTN.addEventListener('click', reprocessMesh);
+    document.getElementById('reset-cam-btn').addEventListener('click', resetCamera);
     UPLOAD_TOGGLE.addEventListener('click', () => {
       UPLOAD_SECTION.classList.toggle('section-collapsed');
       UPLOAD_TOGGLE.classList.toggle('collapsed');
@@ -1085,6 +1193,8 @@
     wireToggle('show-h', 'showH', false);
     wireToggle('show-v', 'showV', false);
     wireToggle('show-labels', 'showLabels', false);
+    wireToggle('wireframe', 'wireframe', false);
+    wireToggle('show-grid', 'showGrid', false);
 
     tryAutoLoad();
   </script>
