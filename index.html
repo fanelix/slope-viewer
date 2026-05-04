@@ -1359,6 +1359,9 @@
       console.log('[Mesh] BBox:', box.min.x.toFixed(1), box.min.y.toFixed(1), box.min.z.toFixed(1), '→', box.max.x.toFixed(1), box.max.y.toFixed(1), box.max.z.toFixed(1));
     }
 
+    // ============================================================
+    // PERBAIKAN UTAMA: buildMonitoringObjects — semua titik pakai panah
+    // ============================================================
     function buildMonitoringObjects() {
       while (monitorGroup.children.length > 0) {
         const child = monitorGroup.children[0];
@@ -1386,8 +1389,11 @@
       const rx = maxE - minE, ry = maxN - minN;
       const r = Math.max(rx, ry);
       const sphereRadius = Math.max(1.0, r * 0.004);
-      const headRatio = 0.22;
       const sphereGeo = new THREE.SphereGeometry(sphereRadius, 16, 16);
+
+      // Panjang minimum panah agar SELALU terlihat jelas di viewport,
+      // meskipun displacement sangat kecil. Diatur sebagai kelipatan sphereRadius.
+      const MIN_ARROW_LEN = sphereRadius * 3.0;
 
       for (const p of pts) {
         const zEx = exaggerateZ(p.z0, zCenter, state.zExag);
@@ -1407,21 +1413,42 @@
           monitorGroup.add(label);
         }
 
-        if (state.showH && p.disp2D > 1e-6) {
-          const dir = new THREE.Vector3(p.dE, p.dN, 0).normalize();
-          const len = p.disp2D * state.scaleH;
-          const headLen = Math.max(sphereRadius * 2, len * headRatio);
-          const headWidth = headLen * 0.5;
-          const arrow = new THREE.ArrowHelper(dir, origin, len, new THREE.Color(p.category.color), headLen, headWidth);
+        // --- PANAH HORIZONTAL (selalu dibuat jika showH aktif dan ada komponen horizontal) ---
+        if (state.showH) {
+          const hasHorizontal = (p.dE !== 0 || p.dN !== 0);
+          // Jika benar-benar tidak ada pergerakan horizontal, tetap buat panah "placeholder"
+          // dengan arah default ke Utara agar user tahu titik ini ada & aman.
+          const dir = new THREE.Vector3(p.dE, p.dN, 0);
+          if (dir.lengthSq() > 0) {
+            dir.normalize();
+          } else {
+            dir.set(0, 1, 0); // Default ke Utara jika 0
+          }
+          
+          // Panjang: skala aktual, tapi minimal MIN_ARROW_LEN agar selalu terlihat
+          const rawLen = p.disp2D * state.scaleH;
+          const len = Math.max(rawLen, MIN_ARROW_LEN);
+          
+          // Kepala panah: proporsional, tapi tidak boleh lebih besar dari 40% panjang
+          // dan tidak lebih besar dari 2.5× sphereRadius agar tetap estetis
+          const headLen = Math.min(len * 0.35, sphereRadius * 2.5, len * 0.5);
+          const headWidth = Math.max(headLen * 0.5, sphereRadius * 0.8);
+          
+          const arrow = new THREE.ArrowHelper(
+            dir, origin, len, new THREE.Color(p.category.color),
+            headLen, headWidth
+          );
           monitorGroup.add(arrow);
         }
 
-        if (state.showV && Math.abs(p.dZ) > 1e-6) {
+        // --- PANAH VERTIKAL (selalu dibuat jika showV aktif dan dZ != 0) ---
+        if (state.showV && p.dZ !== 0) {
           const dir = new THREE.Vector3(0, 0, p.dZ > 0 ? 1 : -1);
-          const len = Math.abs(p.dZ) * state.scaleV;
+          const rawLen = Math.abs(p.dZ) * state.scaleV;
+          const len = Math.max(rawLen, MIN_ARROW_LEN);
+          const headLen = Math.min(len * 0.35, sphereRadius * 2.5, len * 0.5);
+          const headWidth = Math.max(headLen * 0.5, sphereRadius * 0.8);
           const color = p.dZ < 0 ? 0x1f5f8b : 0x3498db;
-          const headLen = Math.max(sphereRadius * 2, len * headRatio);
-          const headWidth = headLen * 0.5;
           const arrow = new THREE.ArrowHelper(dir, origin, len, color, headLen, headWidth);
           monitorGroup.add(arrow);
         }
