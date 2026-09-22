@@ -79,3 +79,68 @@ test('legacy labels fixture baseline', async ({ page }) => {
   await page.locator('#show-labels').check();
   await capture(page, 'legacy-labels.png');
 });
+
+test('worker geometry matches the immutable fixture reference', async ({ page }) => {
+  await installFixtureRoutes(page);
+  await page.goto('/?test=1');
+  await expect(page.locator('#loading')).toHaveClass(/hidden/);
+
+  const result = await page.evaluate(async () => {
+    const [{ createDxfClient }, { DEFAULT_STATE }] = await Promise.all([
+      import('/src/dxf-client.js'),
+      import('/src/config.js'),
+    ]);
+    const source = await fetch('/data/topografi.dxf').then((response) => (
+      response.arrayBuffer()
+    ));
+    const client = createDxfClient({
+      syncParser: () => {
+        throw new Error('Real worker unexpectedly fell back to synchronous parsing');
+      },
+    });
+    const parsed = await client.parse(source, DEFAULT_STATE);
+
+    const byteLength = (
+      parsed.mesh.x.length
+      + parsed.mesh.y.length
+      + parsed.mesh.z.length
+    ) * 8 + (
+      parsed.mesh.i.length
+      + parsed.mesh.j.length
+      + parsed.mesh.k.length
+    ) * 4;
+    const serialized = new ArrayBuffer(byteLength);
+    const view = new DataView(serialized);
+    let offset = 0;
+    for (const values of [parsed.mesh.x, parsed.mesh.y, parsed.mesh.z]) {
+      for (const value of values) {
+        view.setFloat64(offset, value, true);
+        offset += 8;
+      }
+    }
+    for (const values of [parsed.mesh.i, parsed.mesh.j, parsed.mesh.k]) {
+      for (const value of values) {
+        view.setUint32(offset, value, true);
+        offset += 4;
+      }
+    }
+    const digestBytes = new Uint8Array(
+      await crypto.subtle.digest('SHA-256', serialized),
+    );
+    const digest = [...digestBytes]
+      .map((value) => value.toString(16).padStart(2, '0'))
+      .join('');
+    window.__SLOPE_VIEWER_WORKER_TEST_RESULT__ = {
+      vertexCount: parsed.mesh.x.length,
+      triangleCount: parsed.mesh.i.length,
+      digest,
+    };
+    return window.__SLOPE_VIEWER_WORKER_TEST_RESULT__;
+  });
+
+  expect(result).toEqual({
+    vertexCount: 8,
+    triangleCount: 6,
+    digest: '84dd01dc560fa3df5c02c0ee3e184145578e113ff7778476b0ad9818aefb4e88',
+  });
+});
