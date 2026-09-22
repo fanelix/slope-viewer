@@ -3,3 +3,5 @@ node_modules/
 .test-browser/
 playwright-report/
 test-results/
+_site/
+.test-output/

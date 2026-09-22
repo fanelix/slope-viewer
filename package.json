@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "build:site": "node scripts/build-site.mjs",
+    "verify:site": "node --test tests/assets.test.mjs",
     "serve:test": "node scripts/serve-tests.mjs",
     "test:unit": "node --test tests/*.test.mjs",
     "test:visual": "playwright test",
