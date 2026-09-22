@@ -280,6 +280,7 @@ test('scene test API is gated and opacity avoids geometry rebuilds', async ({ pa
   const before = await page.evaluate(() => (
     window.__SLOPE_VIEWER_TEST_API__.diagnostics()
   ));
+  expect(before.monitoringDrawObjects).toBeLessThan(25);
   await page.locator('#opacity').evaluate((element) => {
     element.value = '50';
     element.dispatchEvent(new Event('input', { bubbles: true }));

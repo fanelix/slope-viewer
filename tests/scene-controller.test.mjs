@@ -182,6 +182,7 @@ test('grid changes leave terrain and monitoring identities untouched', () => {
   scene.controller.setMesh(fixtureMesh());
   scene.controller.setMonitoring(fixtureMonitoring());
   const before = scene.controller.debugHandles();
+  assert.ok(scene.controller.getDiagnostics().monitoringDrawObjects < 25);
 
   for (let index = 0; index < 50; index += 1) {
     scene.controller.setGridOptions({

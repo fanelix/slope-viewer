@@ -1,9 +1,6 @@
 import { DEFAULT_STATE } from './config.js';
-import {
-  buildMonitoringTransforms,
-  calculateSphereRadius,
-  exaggerateZ,
-} from './monitoring-core.js';
+import { createMonitoringBatch } from './monitoring-batch.js';
+import { exaggerateZ } from './monitoring-core.js';
 
 function disposeMaterial(material, disposeResource) {
   if (Array.isArray(material)) {
@@ -150,6 +147,7 @@ export class SceneController {
     this.scene.add(this.topoGroup);
     this.scene.add(this.monitorGroup);
     this.terrain = null;
+    this.monitoringBatch = null;
     this.gridHelper = null;
     this.axesHelper = null;
     this.gridLabelsGroup = null;
@@ -525,62 +523,36 @@ export class SceneController {
   }
 
   _rebuildMonitoring() {
-    const { THREE } = this;
     this.counters.monitoringRebuilds += 1;
-    this._clearGroup(this.monitorGroup);
     const points = this.state.monitoring;
-    if (!points?.length) return;
-    const sphereRadius = calculateSphereRadius(points);
-    const transforms = buildMonitoringTransforms(points, {
+    if (!points?.length) {
+      if (this.monitoringBatch) {
+        this.monitorGroup.remove(this.monitoringBatch.group);
+        this.monitoringBatch.dispose();
+        this.monitoringBatch = null;
+      }
+      return;
+    }
+    const settings = {
       scaleH: this.state.scaleH,
       scaleV: this.state.scaleV,
-      sphereRadius,
       zCenter: this.zCenter,
       zExag: this.state.zExag,
       showH: this.state.showH,
       showV: this.state.showV,
-    });
-    const sphereGeometry = new THREE.SphereGeometry(sphereRadius, 16, 16);
-    for (const point of transforms.points) {
-      const origin = new THREE.Vector3(...point.origin);
-      const material = new THREE.MeshLambertMaterial({
-        color: point.category.color,
+      showLabels: this.state.showLabels,
+    };
+    if (this.monitoringBatch) {
+      this.monitoringBatch.update({ points, settings });
+    } else {
+      this.monitoringBatch = createMonitoringBatch({
+        THREE: this.THREE,
+        CSS2DObject: this.CSS2DObject,
+        documentRef: this.document,
+        points,
+        settings,
       });
-      const sphere = new THREE.Mesh(sphereGeometry, material);
-      sphere.position.copy(origin);
-      sphere.castShadow = true;
-      this.monitorGroup.add(sphere);
-
-      if (this.state.showLabels) {
-        const element = this.document.createElement('div');
-        element.className = 'monitor-label';
-        element.textContent = point.id;
-        const label = new this.CSS2DObject(element);
-        label.position.set(point.origin[0], point.origin[1], point.labelZ);
-        this.monitorGroup.add(label);
-      }
-      if (point.horizontal) {
-        const arrow = point.horizontal;
-        this.monitorGroup.add(new THREE.ArrowHelper(
-          new THREE.Vector3(...arrow.direction),
-          origin,
-          arrow.length,
-          new THREE.Color(arrow.color),
-          arrow.headLength,
-          arrow.headWidth,
-        ));
-      }
-      if (point.vertical) {
-        const arrow = point.vertical;
-        this.monitorGroup.add(new THREE.ArrowHelper(
-          new THREE.Vector3(...arrow.direction),
-          origin,
-          arrow.length,
-          arrow.color,
-          arrow.headLength,
-          arrow.headWidth,
-        ));
-      }
+      this.monitorGroup.add(this.monitoringBatch.group);
     }
   }
 
@@ -819,6 +791,7 @@ export class SceneController {
       pendingFrames: this.scheduler.pendingFrameCount?.() || 0,
       drawCalls: this.renderer.info?.render?.calls || 0,
       objectCount,
+      monitoringDrawObjects: this.monitoringBatch?.drawObjectCount || 0,
     };
   }
 
@@ -829,6 +802,7 @@ export class SceneController {
       controls: this.controls,
       terrain: this.terrain,
       monitoring: this.monitorGroup,
+      monitoringBatch: this.monitoringBatch,
       grid: this.gridHelper,
       renderer: this.renderer,
       labelRenderer: this.labelRenderer,
@@ -848,7 +822,11 @@ export class SceneController {
       this._disposeObjectTree(this.terrain);
       this.terrain = null;
     }
-    this._clearGroup(this.monitorGroup);
+    if (this.monitoringBatch) {
+      this.monitorGroup.remove(this.monitoringBatch.group);
+      this.monitoringBatch.dispose();
+      this.monitoringBatch = null;
+    }
     this._removeHelper('gridHelper');
     this._removeHelper('axesHelper');
     this._removeHelper('gridLabelsGroup');
