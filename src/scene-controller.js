@@ -10,6 +10,19 @@ function disposeMaterial(material, disposeResource) {
   }
 }
 
+function createLineSegments(THREE, positions, material) {
+  if (positions.length === 0) {
+    material.dispose();
+    return null;
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute(
+    'position',
+    new THREE.BufferAttribute(new Float32Array(positions), 3),
+  );
+  return new THREE.LineSegments(geometry, material);
+}
+
 export class SceneController {
   constructor({
     THREE,
@@ -451,17 +464,15 @@ export class SceneController {
       transparent: true,
       opacity: 0.6,
     });
-    const verticalGeometry = new THREE.BufferGeometry();
-    verticalGeometry.setAttribute(
-      'position',
-      new THREE.BufferAttribute(new Float32Array([
+    const verticalLine = createLineSegments(
+      THREE,
+      [
         xMinGrid, yMaxGrid, zExMin,
         xMinGrid, yMaxGrid, zExMax,
-      ]), 3),
+      ],
+      elevationMaterial,
     );
-    this.elevationLinesGroup.add(
-      new THREE.Line(verticalGeometry, elevationMaterial),
-    );
+    if (verticalLine) this.elevationLinesGroup.add(verticalLine);
     const elevationTickSpacing = Math.max(
       50,
       Math.round((bounds.maxZ - bounds.minZ) / 10 / 50) * 50,
@@ -476,22 +487,20 @@ export class SceneController {
     const elevationMax = Math.floor(bounds.maxZ / elevationTickSpacing)
       * elevationTickSpacing;
     const tickLength = bounds.spanXY * 0.015;
+    const tickPositions = [];
     for (
       let elevation = elevationMin;
       elevation <= elevationMax + 0.001;
       elevation += elevationTickSpacing
     ) {
       const z = exaggerateZ(elevation, bounds.cz, this.state.zExag);
-      const geometry = new THREE.BufferGeometry();
-      geometry.setAttribute(
-        'position',
-        new THREE.BufferAttribute(new Float32Array([
-          xMinGrid, yMaxGrid, z,
-          xMinGrid - tickLength, yMaxGrid + tickLength, z,
-        ]), 3),
+      tickPositions.push(
+        xMinGrid, yMaxGrid, z,
+        xMinGrid - tickLength, yMaxGrid + tickLength, z,
       );
-      this.elevationLinesGroup.add(new THREE.Line(geometry, tickMaterial));
     }
+    const tickLines = createLineSegments(THREE, tickPositions, tickMaterial);
+    if (tickLines) this.elevationLinesGroup.add(tickLines);
     this.scene.add(this.elevationLinesGroup);
 
     this.gridLabelsGroup = new THREE.Group();

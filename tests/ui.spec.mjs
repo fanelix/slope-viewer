@@ -98,11 +98,7 @@ async function loadThroughRuntimeModules(page, times = 1) {
   }, times);
 }
 
-async function installRuntimeFixtureRoutes(page) {
-  await page.route('**/data/monitoring.csv', (route) => route.fulfill({
-    body: monitoringFixture,
-    contentType: 'text/csv; charset=utf-8',
-  }));
+async function installThreeRoutes(page) {
   await page.route('https://unpkg.com/three@0.160.0/**', async (route) => {
     const requestUrl = new URL(route.request().url());
     const marker = '/three@0.160.0/';
@@ -118,6 +114,14 @@ async function installRuntimeFixtureRoutes(page) {
       headers: { 'Access-Control-Allow-Origin': '*' },
     });
   });
+}
+
+async function installRuntimeFixtureRoutes(page) {
+  await page.route('**/data/monitoring.csv', (route) => route.fulfill({
+    body: monitoringFixture,
+    contentType: 'text/csv; charset=utf-8',
+  }));
+  await installThreeRoutes(page);
 }
 
 async function installFixtureRoutes(page) {
@@ -674,6 +678,31 @@ test('performance budget stable viewer stops frames and stays below 25 draws', a
   expect(stable.drawCalls).toBeLessThan(25);
   expect(stable.monitoringDrawObjects).toBeLessThan(25);
   expect(stable.shadowAutoUpdate).toBe(false);
+  await page.waitForTimeout(300);
+  const later = await page.evaluate(() => (
+    window.__SLOPE_VIEWER_TEST_API__.diagnostics()
+  ));
+  expect(later.pendingFrames).toBe(0);
+  expect(later.renders).toBe(stable.renders);
+});
+
+test('canonical production data stays below the default draw budget', async ({ page }) => {
+  await installThreeRoutes(page);
+  await page.goto('/?test=1');
+  await expect(page.locator('#loading')).toHaveClass(/hidden/);
+  await expect(page.locator('#stat-triangles')).toHaveText('41,832');
+  await waitForStableViewer(page);
+
+  const stable = await page.evaluate(() => (
+    window.__SLOPE_VIEWER_TEST_API__.diagnostics()
+  ));
+  expect(stable).toMatchObject({
+    pendingFrames: 0,
+    monitoringDrawObjects: 9,
+    shadowAutoUpdate: false,
+    workerSource: 'worker',
+  });
+  expect(stable.drawCalls).toBeLessThan(25);
   await page.waitForTimeout(300);
   const later = await page.evaluate(() => (
     window.__SLOPE_VIEWER_TEST_API__.diagnostics()

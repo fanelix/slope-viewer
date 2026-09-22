@@ -121,6 +121,18 @@ function fixtureMesh(offset = 0) {
   };
 }
 
+function largeFixtureMesh() {
+  return {
+    x: new Float64Array([0, 8000, 8000, 0]),
+    y: new Float64Array([0, 0, 8000, 8000]),
+    z: new Float64Array([0, 0, 500, 500]),
+    i: new Uint32Array([0, 0]),
+    j: new Uint32Array([1, 2]),
+    k: new Uint32Array([2, 3]),
+    stats: { vertexCount: 4, validTriangles: 2 },
+  };
+}
+
 function fixtureMonitoring() {
   return [
     {
@@ -221,6 +233,30 @@ test('grid changes leave terrain and monitoring identities untouched', () => {
   assert.equal(after.terrain, before.terrain);
   assert.equal(after.monitoring, before.monitoring);
   assert.notEqual(after.grid, before.grid);
+});
+
+test('large helpers batch elevation while preserving coplanar grid order', () => {
+  const scene = createControllerFixture();
+  scene.controller.setMesh(largeFixtureMesh());
+  const { grid, scene: threeScene } = scene.controller.debugHandles();
+  const elevation = threeScene.getObjectByName('ElevationLines');
+
+  assert.equal(grid.children.length, 22);
+  assert.ok(grid.children.every((child) => child.type === 'Line'));
+  assert.equal(
+    grid.children.reduce((sum, child) => (
+      sum + child.geometry.getAttribute('position').count / 2
+    ), 0),
+    22,
+  );
+  assert.equal(elevation.children.length, 2);
+  assert.ok(elevation.children.every((child) => child.type === 'LineSegments'));
+  assert.equal(
+    elevation.children.reduce((sum, child) => (
+      sum + child.geometry.getAttribute('position').count / 2
+    ), 0),
+    12,
+  );
 });
 
 test('Z exaggeration replaces only owned geometry and disposes each old geometry once', () => {
