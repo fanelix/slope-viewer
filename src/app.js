@@ -31,6 +31,8 @@ const state = {
 };
 const runtimeDiagnostics = {
   loaderSource: 'none',
+  sourceHash: null,
+  shortSourceHash: null,
   workerSource: 'none',
   lastWorkerOperation: 'none',
   loadRequests: 0,
@@ -257,6 +259,10 @@ function applyDxfResult(result) {
   state.rawGeometry = result.rawGeometry;
   state.mesh = result.mesh;
   if (result.source) runtimeDiagnostics.loaderSource = result.source;
+  if (typeof result.sourceHash === 'string') {
+    runtimeDiagnostics.sourceHash = result.sourceHash;
+    runtimeDiagnostics.shortSourceHash = result.sourceHash.slice(0, 12);
+  }
   if (result.source === 'cache') runtimeDiagnostics.workerSource = 'cache';
   updateUIMode();
   sceneController.setMesh(result.mesh);

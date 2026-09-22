@@ -11,6 +11,9 @@ const repositoryRoot = resolve(testsDirectory, '..');
 const fixtureDirectory = resolve(testsDirectory, 'fixtures');
 const threeRoot = resolve(repositoryRoot, 'node_modules/three');
 const terrainFixture = await readFile(resolve(fixtureDirectory, 'terrain-sample.dxf'));
+const terrainFixtureSha256 = createHash('sha256')
+  .update(terrainFixture)
+  .digest('hex');
 const monitoringFixture = await readFile(resolve(
   fixtureDirectory,
   'monitoring-sample.csv',
@@ -25,14 +28,13 @@ const replacementMonitoring = Buffer.from(
 async function installLoaderFixtureRoutes(page, counts) {
   const raw = await readFile(resolve(fixtureDirectory, 'terrain-sample.dxf'));
   const gzip = gzipSync(raw, { level: 9, mtime: 0 });
-  const sha256 = createHash('sha256').update(raw).digest('hex');
   const manifest = {
     schemaVersion: 1,
     algorithmVersion: 'dxf-v1',
     dxf: {
       path: 'data/topografi.dxf',
       gzipPath: 'data/topografi.dxf.gz',
-      sha256,
+      sha256: terrainFixtureSha256,
       bytes: raw.length,
       gzipBytes: gzip.length,
     },
@@ -376,6 +378,7 @@ test('user flow auto gzip and cache hit expose their runtime sources', async ({ 
   ))).toMatchObject({
     loaderSource: 'gzip',
     workerSource: 'worker',
+    shortSourceHash: terrainFixtureSha256.slice(0, 12),
   });
 
   await page.reload();
@@ -386,6 +389,7 @@ test('user flow auto gzip and cache hit expose their runtime sources', async ({ 
   ))).toMatchObject({
     loaderSource: 'cache',
     workerSource: 'cache',
+    shortSourceHash: terrainFixtureSha256.slice(0, 12),
   });
   expect(counts).toEqual({ manifest: 2, gzip: 1, raw: 0 });
 });
