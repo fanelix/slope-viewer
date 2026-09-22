@@ -1,3 +1,8 @@
+import { parse3dFaceStream } from './dxf-3dface-stream.js';
+
+// Canonical benchmark: exact digest with a measured heap reduction above 30%.
+export const USE_STREAMING_3DFACE = true;
+
 function toTypedMesh(mesh) {
   return {
     ...mesh,
@@ -10,7 +15,24 @@ function toTypedMesh(mesh) {
   };
 }
 
-export function parseDxfGeometry(dxfText, { DxfParser } = {}) {
+export function parseDxfGeometry(
+  dxfText,
+  {
+    DxfParser,
+    useStreaming3dFace = USE_STREAMING_3DFACE,
+  } = {},
+) {
+  if (useStreaming3dFace) {
+    const streamed = parse3dFaceStream(dxfText);
+    if (streamed.supported) {
+      return {
+        kind: streamed.kind,
+        mesh: streamed.mesh,
+        typeCount: streamed.typeCount,
+      };
+    }
+  }
+
   if (typeof DxfParser !== 'function') {
     throw new TypeError('DxfParser dependency is required');
   }

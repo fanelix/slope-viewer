@@ -5,6 +5,7 @@ import { collectTransferables } from '../dxf-client.js';
 import {
   buildMeshFromGeometry,
   parseDxfGeometry,
+  USE_STREAMING_3DFACE,
   validateMesh,
 } from '../dxf-core.js';
 
@@ -29,7 +30,10 @@ self.onmessage = (event) => {
     const raw = operation === 'parse'
       ? parseDxfGeometry(
           new TextDecoder().decode(buffer),
-          { DxfParser: self.DxfParser },
+          {
+            DxfParser: self.DxfParser,
+            useStreaming3dFace: USE_STREAMING_3DFACE,
+          },
         )
       : rawGeometry;
     const mesh = buildMeshFromGeometry(
