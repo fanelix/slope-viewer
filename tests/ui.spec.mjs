@@ -265,3 +265,35 @@ test('cache hit avoids every DXF asset request on second load', async ({ page })
   ]);
   expect(counts).toEqual({ manifest: 2, gzip: 1, raw: 0 });
 });
+
+test('scene test API is gated and opacity avoids geometry rebuilds', async ({ page }) => {
+  await installFixtureRoutes(page);
+  await page.goto('/');
+  await expect(page.locator('#loading')).toHaveClass(/hidden/);
+  expect(await page.evaluate(() => window.__SLOPE_VIEWER_TEST_API__)).toBeUndefined();
+
+  await page.goto('/?test=1');
+  await expect(page.locator('#stat-triangles')).toHaveText('6');
+  await page.waitForFunction(() => (
+    window.__SLOPE_VIEWER_TEST_API__?.diagnostics().pendingFrames === 0
+  ));
+  const before = await page.evaluate(() => (
+    window.__SLOPE_VIEWER_TEST_API__.diagnostics()
+  ));
+  await page.locator('#opacity').evaluate((element) => {
+    element.value = '50';
+    element.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  await page.waitForFunction(() => (
+    window.__SLOPE_VIEWER_TEST_API__.diagnostics().pendingFrames === 0
+  ));
+  const after = await page.evaluate(() => (
+    window.__SLOPE_VIEWER_TEST_API__.diagnostics()
+  ));
+
+  expect(after.terrainGeometryRebuilds).toBe(before.terrainGeometryRebuilds);
+  expect(after.terrainMaterialRebuilds).toBe(before.terrainMaterialRebuilds);
+  expect(after.monitoringRebuilds).toBe(before.monitoringRebuilds);
+  expect(after.gridRebuilds).toBe(before.gridRebuilds);
+  expect(after.renders).toBeGreaterThan(before.renders);
+});
