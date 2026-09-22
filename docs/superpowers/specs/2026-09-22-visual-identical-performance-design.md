@@ -1,8 +1,11 @@
 # Visual-Identical Performance Optimization Design
 
-**Repository:** `fanelix/slope-viewer`  
-**Branch:** `perf/visual-identical-optimization`  
-**Date:** 2026-09-22  
+**Repository:** `fanelix/slope-viewer`
+
+**Branch:** `perf/visual-identical-optimization`
+
+**Date:** 2026-09-22
+
 **Status:** Proposed for implementation after user review
 
 ## 1. Purpose
