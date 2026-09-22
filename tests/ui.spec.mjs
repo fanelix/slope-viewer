@@ -1,6 +1,8 @@
+import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { dirname, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { gzipSync } from 'node:zlib';
 
 import { expect, test } from '@playwright/test';
 
@@ -8,6 +10,80 @@ const testsDirectory = dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = resolve(testsDirectory, '..');
 const fixtureDirectory = resolve(testsDirectory, 'fixtures');
 const threeRoot = resolve(repositoryRoot, 'node_modules/three');
+
+async function installLoaderFixtureRoutes(page, counts) {
+  const raw = await readFile(resolve(fixtureDirectory, 'terrain-sample.dxf'));
+  const gzip = gzipSync(raw, { level: 9, mtime: 0 });
+  const sha256 = createHash('sha256').update(raw).digest('hex');
+  const manifest = {
+    schemaVersion: 1,
+    algorithmVersion: 'dxf-v1',
+    dxf: {
+      path: 'data/topografi.dxf',
+      gzipPath: 'data/topografi.dxf.gz',
+      sha256,
+      bytes: raw.length,
+      gzipBytes: gzip.length,
+    },
+  };
+
+  await page.route('**/data/assets-manifest.json', (route) => {
+    counts.manifest += 1;
+    return route.fulfill({
+      body: JSON.stringify(manifest),
+      contentType: 'application/json',
+    });
+  });
+  await page.route(/\/data\/topografi\.dxf\.gz(?:\?.*)?$/, (route) => {
+    counts.gzip += 1;
+    return route.fulfill({
+      body: gzip,
+      contentType: 'application/gzip',
+    });
+  });
+  await page.route(/\/data\/topografi\.dxf(?:\?.*)?$/, (route) => {
+    counts.raw += 1;
+    return route.fulfill({
+      body: raw,
+      contentType: 'text/plain; charset=utf-8',
+    });
+  });
+}
+
+async function openLoaderHarness(page) {
+  await page.goto('/__loader_harness__.html');
+}
+
+async function loadThroughRuntimeModules(page, times = 1) {
+  return page.evaluate(async (loadCount) => {
+    const [
+      { createDataLoader },
+      { createDxfClient },
+      { DEFAULT_STATE },
+    ] = await Promise.all([
+      import('/src/data-loader.js'),
+      import('/src/dxf-client.js'),
+      import('/src/config.js'),
+    ]);
+    const loader = createDataLoader({
+      dxfClient: createDxfClient({
+        syncParser: () => {
+          throw new Error('Real worker unexpectedly used sync fallback');
+        },
+      }),
+    });
+    const results = [];
+    for (let index = 0; index < loadCount; index += 1) {
+      const loaded = await loader.loadAutoData({ settings: DEFAULT_STATE });
+      results.push({
+        source: loaded.source,
+        vertexCount: loaded.mesh.x.length,
+        triangleCount: loaded.mesh.i.length,
+      });
+    }
+    return results;
+  }, times);
+}
 
 async function installFixtureRoutes(page) {
   await page.route('**/data/topografi.dxf', (route) => route.fulfill({
@@ -143,4 +219,49 @@ test('worker geometry matches the immutable fixture reference', async ({ page })
     triangleCount: 6,
     digest: '84dd01dc560fa3df5c02c0ee3e184145578e113ff7778476b0ad9818aefb4e88',
   });
+});
+
+test('loader fallback survives missing decompression and IndexedDB', async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(globalThis, 'DecompressionStream', {
+      configurable: true,
+      value: undefined,
+    });
+    Object.defineProperty(globalThis, 'indexedDB', {
+      configurable: true,
+      value: {
+        open() {
+          throw new Error('IndexedDB intentionally unavailable');
+        },
+      },
+    });
+  });
+  const counts = { manifest: 0, gzip: 0, raw: 0 };
+  await installLoaderFixtureRoutes(page, counts);
+  await openLoaderHarness(page);
+
+  expect(await loadThroughRuntimeModules(page)).toEqual([{
+    source: 'raw',
+    vertexCount: 8,
+    triangleCount: 6,
+  }]);
+  expect(counts).toEqual({ manifest: 1, gzip: 0, raw: 1 });
+});
+
+test('cache hit avoids every DXF asset request on second load', async ({ page }) => {
+  const counts = { manifest: 0, gzip: 0, raw: 0 };
+  await installLoaderFixtureRoutes(page, counts);
+  await openLoaderHarness(page);
+  await page.evaluate(() => new Promise((resolve, reject) => {
+    const request = indexedDB.deleteDatabase('slope-viewer-cache');
+    request.onsuccess = () => resolve();
+    request.onerror = () => reject(request.error);
+    request.onblocked = () => reject(new Error('Cache deletion blocked'));
+  }));
+
+  expect(await loadThroughRuntimeModules(page, 2)).toEqual([
+    { source: 'gzip', vertexCount: 8, triangleCount: 6 },
+    { source: 'cache', vertexCount: 8, triangleCount: 6 },
+  ]);
+  expect(counts).toEqual({ manifest: 2, gzip: 1, raw: 0 });
 });
