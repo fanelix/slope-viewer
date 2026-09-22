@@ -10,6 +10,17 @@ const testsDirectory = dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = resolve(testsDirectory, '..');
 const fixtureDirectory = resolve(testsDirectory, 'fixtures');
 const threeRoot = resolve(repositoryRoot, 'node_modules/three');
+const terrainFixture = await readFile(resolve(fixtureDirectory, 'terrain-sample.dxf'));
+const monitoringFixture = await readFile(resolve(
+  fixtureDirectory,
+  'monitoring-sample.csv',
+));
+const replacementTerrain = Buffer.from(
+  terrainFixture.toString('utf8').replaceAll('1200', '1250'),
+);
+const replacementMonitoring = Buffer.from(
+  monitoringFixture.toString('utf8').trim().split('\n').slice(0, -1).join('\n'),
+);
 
 async function installLoaderFixtureRoutes(page, counts) {
   const raw = await readFile(resolve(fixtureDirectory, 'terrain-sample.dxf'));
@@ -85,13 +96,9 @@ async function loadThroughRuntimeModules(page, times = 1) {
   }, times);
 }
 
-async function installFixtureRoutes(page) {
-  await page.route('**/data/topografi.dxf', (route) => route.fulfill({
-    path: resolve(fixtureDirectory, 'terrain-sample.dxf'),
-    contentType: 'text/plain; charset=utf-8',
-  }));
+async function installRuntimeFixtureRoutes(page) {
   await page.route('**/data/monitoring.csv', (route) => route.fulfill({
-    path: resolve(fixtureDirectory, 'monitoring-sample.csv'),
+    body: monitoringFixture,
     contentType: 'text/csv; charset=utf-8',
   }));
   await page.route('https://unpkg.com/three@0.160.0/**', async (route) => {
@@ -111,6 +118,14 @@ async function installFixtureRoutes(page) {
   });
 }
 
+async function installFixtureRoutes(page) {
+  await page.route('**/data/topografi.dxf', (route) => route.fulfill({
+    body: terrainFixture,
+    contentType: 'text/plain; charset=utf-8',
+  }));
+  await installRuntimeFixtureRoutes(page);
+}
+
 async function openLegacyFixture(page) {
   await installFixtureRoutes(page);
   await page.goto('/');
@@ -118,6 +133,55 @@ async function openLegacyFixture(page) {
   await expect(page.locator('#stat-points')).toHaveText('6');
   await expect(page.locator('#loading')).toHaveClass(/hidden/);
   await page.waitForTimeout(250);
+}
+
+async function waitForStableViewer(page) {
+  await page.waitForFunction(() => {
+    const diagnostics = window.__SLOPE_VIEWER_TEST_API__?.diagnostics();
+    return diagnostics
+      && diagnostics.pendingFrames === 0
+      && (diagnostics.pendingControlUpdates ?? 0) === 0;
+  });
+}
+
+async function openTestFixture(page) {
+  await installFixtureRoutes(page);
+  await page.goto('/?test=1');
+  await expect(page.locator('#loading')).toHaveClass(/hidden/);
+  await expect(page.locator('#stat-triangles')).toHaveText('6');
+  await waitForStableViewer(page);
+}
+
+async function openUploadSection(page) {
+  const section = page.locator('#upload-section');
+  if (await section.evaluate((element) => (
+    element.classList.contains('section-collapsed')
+  ))) {
+    await page.locator('#upload-section-toggle').evaluate((element) => {
+      element.click();
+    });
+  }
+}
+
+async function uploadManualFiles(page, { dxf, csv }) {
+  await openUploadSection(page);
+  if (dxf) {
+    await page.locator('#dxf-input').setInputFiles({
+      name: dxf.name,
+      mimeType: 'application/dxf',
+      buffer: dxf.buffer,
+    });
+  }
+  if (csv) {
+    await page.locator('#csv-input').setInputFiles({
+      name: csv.name,
+      mimeType: 'text/csv',
+      buffer: csv.buffer,
+    });
+  }
+  await page.locator('#load-btn').click();
+  await expect(page.locator('#loading')).toHaveClass(/hidden/);
+  await waitForStableViewer(page);
 }
 
 async function capture(page, filename) {
@@ -297,4 +361,319 @@ test('scene test API is gated and opacity avoids geometry rebuilds', async ({ pa
   expect(after.monitoringRebuilds).toBe(before.monitoringRebuilds);
   expect(after.gridRebuilds).toBe(before.gridRebuilds);
   expect(after.renders).toBeGreaterThan(before.renders);
+});
+
+test('user flow auto gzip and cache hit expose their runtime sources', async ({ page }) => {
+  const counts = { manifest: 0, gzip: 0, raw: 0 };
+  await installLoaderFixtureRoutes(page, counts);
+  await installRuntimeFixtureRoutes(page);
+
+  await page.goto('/?test=1');
+  await expect(page.locator('#stat-triangles')).toHaveText('6');
+  await waitForStableViewer(page);
+  expect(await page.evaluate(() => (
+    window.__SLOPE_VIEWER_TEST_API__.diagnostics()
+  ))).toMatchObject({
+    loaderSource: 'gzip',
+    workerSource: 'worker',
+  });
+
+  await page.reload();
+  await expect(page.locator('#stat-triangles')).toHaveText('6');
+  await waitForStableViewer(page);
+  expect(await page.evaluate(() => (
+    window.__SLOPE_VIEWER_TEST_API__.diagnostics()
+  ))).toMatchObject({
+    loaderSource: 'cache',
+    workerSource: 'cache',
+  });
+  expect(counts).toEqual({ manifest: 2, gzip: 1, raw: 0 });
+});
+
+test('user flow auto raw fallback remains fully interactive', async ({ page }) => {
+  await openTestFixture(page);
+
+  expect(await page.evaluate(() => (
+    window.__SLOPE_VIEWER_TEST_API__.diagnostics()
+  ))).toMatchObject({
+    loaderSource: 'raw',
+    workerSource: 'worker',
+  });
+  await page.locator('#view-plan').click();
+  await waitForStableViewer(page);
+  await expect(page.locator('#view-plan')).toHaveClass(/active-view/);
+});
+
+for (const manualCase of [
+  {
+    name: 'DXF-only',
+    files: {
+      dxf: { name: 'replacement.dxf', buffer: replacementTerrain },
+    },
+    expectedPoints: '6',
+    digestChanges: true,
+  },
+  {
+    name: 'CSV-only',
+    files: {
+      csv: { name: 'replacement.csv', buffer: replacementMonitoring },
+    },
+    expectedPoints: '5',
+    digestChanges: false,
+  },
+  {
+    name: 'DXF-and-CSV',
+    files: {
+      dxf: { name: 'replacement.dxf', buffer: replacementTerrain },
+      csv: { name: 'replacement.csv', buffer: replacementMonitoring },
+    },
+    expectedPoints: '5',
+    digestChanges: true,
+  },
+]) {
+  test(`user flow manual ${manualCase.name} replacement is atomic`, async ({ page }) => {
+    await openTestFixture(page);
+    const beforeDigest = await page.evaluate(() => (
+      window.__SLOPE_VIEWER_TEST_API__.geometryDigest()
+    ));
+
+    await uploadManualFiles(page, manualCase.files);
+
+    const afterDigest = await page.evaluate(() => (
+      window.__SLOPE_VIEWER_TEST_API__.geometryDigest()
+    ));
+    expect(afterDigest === beforeDigest).toBe(!manualCase.digestChanges);
+    await expect(page.locator('#stat-points')).toHaveText(manualCase.expectedPoints);
+    await expect(page.locator('#stat-source')).toHaveText('Upload');
+    expect(await page.evaluate(() => (
+      window.__SLOPE_VIEWER_TEST_API__.state().dataSource
+    ))).toBe('manual');
+  });
+}
+
+test('user flow failed replacement preserves the scene and permits recovery', async ({ page }) => {
+  await openTestFixture(page);
+  const beforeDigest = await page.evaluate(() => (
+    window.__SLOPE_VIEWER_TEST_API__.geometryDigest()
+  ));
+
+  await uploadManualFiles(page, {
+    dxf: { name: 'invalid.dxf', buffer: Buffer.from('not a valid DXF') },
+  });
+
+  await expect(page.locator('#error-container')).toContainText('Error:');
+  expect(await page.evaluate(() => (
+    window.__SLOPE_VIEWER_TEST_API__.geometryDigest()
+  ))).toBe(beforeDigest);
+  expect(await page.evaluate(() => (
+    window.__SLOPE_VIEWER_TEST_API__.state().dataSource
+  ))).toBe('auto');
+  await expect(page.locator('#stat-triangles')).toHaveText('6');
+
+  await uploadManualFiles(page, {
+    dxf: { name: 'recovered.dxf', buffer: replacementTerrain },
+  });
+  await expect(page.locator('#error-container')).toBeEmpty();
+  expect(await page.evaluate(() => (
+    window.__SLOPE_VIEWER_TEST_API__.geometryDigest()
+  ))).not.toBe(beforeDigest);
+  await expect(page.locator('#stat-source')).toHaveText('Upload');
+});
+
+test('user flow manual replacement supersedes a late auto-load response', async ({ page }) => {
+  await installRuntimeFixtureRoutes(page);
+  await page.route('**/data/topografi.dxf', async (route) => {
+    await new Promise((resolveDelay) => setTimeout(resolveDelay, 600));
+    await route.fulfill({
+      body: terrainFixture,
+      contentType: 'text/plain; charset=utf-8',
+    }).catch(() => {});
+  });
+  await page.goto('/?test=1');
+
+  await uploadManualFiles(page, {
+    dxf: { name: 'replacement.dxf', buffer: replacementTerrain },
+    csv: { name: 'replacement.csv', buffer: replacementMonitoring },
+  });
+  const manualDigest = await page.evaluate(() => (
+    window.__SLOPE_VIEWER_TEST_API__.geometryDigest()
+  ));
+  await page.waitForTimeout(800);
+  await waitForStableViewer(page);
+
+  expect(await page.evaluate(() => (
+    window.__SLOPE_VIEWER_TEST_API__.geometryDigest()
+  ))).toBe(manualDigest);
+  expect(await page.evaluate(() => (
+    window.__SLOPE_VIEWER_TEST_API__.state().dataSource
+  ))).toBe('manual');
+  await expect(page.locator('#stat-points')).toHaveText('5');
+});
+
+test('user flow presets resize rapid sliders grid labels and visibility', async ({ page }) => {
+  await openTestFixture(page);
+
+  for (const view of ['plan', 'front', 'side', 'iso']) {
+    await page.locator(`#view-${view}`).click();
+    await waitForStableViewer(page);
+    await expect(page.locator(`#view-${view}`)).toHaveClass(/active-view/);
+    expect(await page.evaluate(() => (
+      window.__SLOPE_VIEWER_TEST_API__.state().currentView
+    ))).toBe(view);
+  }
+
+  await page.setViewportSize({ width: 1200, height: 800 });
+  await page.waitForFunction(() => {
+    const { camera } = window.__SLOPE_VIEWER_TEST_API__.handles();
+    const container = document.getElementById('canvas-container');
+    return Math.abs(
+      camera.aspect - container.clientWidth / container.clientHeight
+    ) < 1e-12;
+  });
+  await waitForStableViewer(page);
+  const resizeState = await page.evaluate(() => {
+    const { camera } = window.__SLOPE_VIEWER_TEST_API__.handles();
+    const container = document.getElementById('canvas-container');
+    return {
+      aspect: camera.aspect,
+      expectedAspect: container.clientWidth / container.clientHeight,
+    };
+  });
+  expect(resizeState.aspect).toBeCloseTo(resizeState.expectedAspect, 12);
+
+  const beforeRapid = await page.evaluate(() => (
+    window.__SLOPE_VIEWER_TEST_API__.diagnostics()
+  ));
+  await page.locator('#zexag').evaluate((slider) => {
+    for (let index = 0; index < 20; index += 1) {
+      slider.value = String(1 + index * 0.5);
+      slider.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+  });
+  await page.waitForTimeout(100);
+  await waitForStableViewer(page);
+  const afterRapid = await page.evaluate(() => (
+    window.__SLOPE_VIEWER_TEST_API__.diagnostics()
+  ));
+  expect(afterRapid.terrainGeometryRebuilds).toBe(
+    beforeRapid.terrainGeometryRebuilds + 1,
+  );
+  expect(await page.evaluate(() => (
+    window.__SLOPE_VIEWER_TEST_API__.state().zExag
+  ))).toBe(10.5);
+
+  await page.locator('#opacity').evaluate((slider) => {
+    for (let value = 90; value >= 50; value -= 2) {
+      slider.value = String(value);
+      slider.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+  });
+  await page.waitForTimeout(100);
+  await waitForStableViewer(page);
+  expect(await page.evaluate(() => (
+    window.__SLOPE_VIEWER_TEST_API__.handles().terrain.material.opacity
+  ))).toBe(0.5);
+
+  const beforeGrid = await page.evaluate(() => (
+    window.__SLOPE_VIEWER_TEST_API__.diagnostics()
+  ));
+  await page.locator('#show-grid').uncheck();
+  await waitForStableViewer(page);
+  const afterGrid = await page.evaluate(() => (
+    window.__SLOPE_VIEWER_TEST_API__.diagnostics()
+  ));
+  expect(afterGrid.gridRebuilds).toBe(beforeGrid.gridRebuilds + 1);
+  expect(afterGrid.terrainGeometryRebuilds).toBe(
+    beforeGrid.terrainGeometryRebuilds,
+  );
+  expect(afterGrid.monitoringRebuilds).toBe(beforeGrid.monitoringRebuilds);
+
+  const beforeLabels = afterGrid;
+  await page.locator('#show-labels').check();
+  await waitForStableViewer(page);
+  await expect(page.locator('.monitor-label')).toHaveCount(6);
+  const afterLabels = await page.evaluate(() => (
+    window.__SLOPE_VIEWER_TEST_API__.diagnostics()
+  ));
+  expect(afterLabels.terrainGeometryRebuilds).toBe(
+    beforeLabels.terrainGeometryRebuilds,
+  );
+  expect(afterLabels.monitoringRebuilds).toBe(
+    beforeLabels.monitoringRebuilds + 1,
+  );
+
+  const beforeHidden = await page.evaluate(() => {
+    window.__TEST_DOCUMENT_HIDDEN__ = true;
+    Object.defineProperty(document, 'hidden', {
+      configurable: true,
+      get: () => window.__TEST_DOCUMENT_HIDDEN__,
+    });
+    document.dispatchEvent(new Event('visibilitychange'));
+    const checkbox = document.getElementById('show-grid');
+    checkbox.checked = true;
+    checkbox.dispatchEvent(new Event('change', { bubbles: true }));
+    return window.__SLOPE_VIEWER_TEST_API__.diagnostics();
+  });
+  await page.waitForTimeout(100);
+  expect(await page.evaluate(() => (
+    window.__SLOPE_VIEWER_TEST_API__.diagnostics().renders
+  ))).toBe(beforeHidden.renders);
+  expect(await page.evaluate(() => (
+    window.__SLOPE_VIEWER_TEST_API__.diagnostics().pendingFrames
+  ))).toBe(0);
+
+  await page.evaluate(() => {
+    window.__TEST_DOCUMENT_HIDDEN__ = false;
+    document.dispatchEvent(new Event('visibilitychange'));
+  });
+  await waitForStableViewer(page);
+  expect(await page.evaluate(() => (
+    window.__SLOPE_VIEWER_TEST_API__.diagnostics().renders
+  ))).toBeGreaterThan(beforeHidden.renders);
+});
+
+test('user flow repeated reprocess keeps one scene and releases old resources', async ({ page }) => {
+  await openTestFixture(page);
+  const before = await page.evaluate(() => (
+    window.__SLOPE_VIEWER_TEST_API__.diagnostics()
+  ));
+
+  for (const maxSlope of ['85', '80', '75']) {
+    await page.locator('#maxslope').fill(maxSlope);
+    await page.locator('#reprocess-btn').click();
+    await expect(page.locator('#loading')).toHaveClass(/hidden/);
+    await waitForStableViewer(page);
+  }
+
+  const after = await page.evaluate(() => (
+    window.__SLOPE_VIEWER_TEST_API__.diagnostics()
+  ));
+  expect(after.terrainGeometryRebuilds).toBe(
+    before.terrainGeometryRebuilds + 3,
+  );
+  expect(after.objectCount).toBe(before.objectCount);
+  expect(after.resourceDisposals).toBeGreaterThan(before.resourceDisposals);
+  expect(after).toMatchObject({
+    workerSource: 'worker',
+    lastWorkerOperation: 'reprocess',
+  });
+  await expect(page.locator('#stat-triangles')).toHaveText('6');
+});
+
+test('performance budget stable viewer stops frames and stays below 25 draws', async ({ page }) => {
+  await openTestFixture(page);
+  const stable = await page.evaluate(() => (
+    window.__SLOPE_VIEWER_TEST_API__.diagnostics()
+  ));
+
+  expect(stable.pendingFrames).toBe(0);
+  expect(stable.drawCalls).toBeLessThan(25);
+  expect(stable.monitoringDrawObjects).toBeLessThan(25);
+  expect(stable.shadowAutoUpdate).toBe(false);
+  await page.waitForTimeout(300);
+  const later = await page.evaluate(() => (
+    window.__SLOPE_VIEWER_TEST_API__.diagnostics()
+  ));
+  expect(later.pendingFrames).toBe(0);
+  expect(later.renders).toBe(stable.renders);
 });

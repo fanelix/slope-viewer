@@ -42,6 +42,7 @@ export class SceneController {
       monitoringRebuilds: 0,
       gridRebuilds: 0,
       resourceDisposals: 0,
+      shadowInvalidations: 0,
       renders: 0,
     };
 
@@ -62,6 +63,8 @@ export class SceneController {
     this.renderer.setPixelRatio(Math.min(windowRef.devicePixelRatio || 1, 2));
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    this.renderer.shadowMap.autoUpdate = false;
+    this.renderer.shadowMap.needsUpdate = true;
     container.appendChild(this.renderer.domElement);
 
     this.labelRenderer = labelRenderer || new CSS2DRenderer();
@@ -165,6 +168,12 @@ export class SceneController {
     resource.dispose();
     this.counters.resourceDisposals += 1;
   };
+
+  _markShadowsDirty() {
+    if (!this.renderer.shadowMap?.enabled) return;
+    this.renderer.shadowMap.needsUpdate = true;
+    this.counters.shadowInvalidations += 1;
+  }
 
   _removeElement(element) {
     if (!element || this.removedElements.has(element)) return;
@@ -360,6 +369,7 @@ export class SceneController {
       this.terrain.geometry = geometry;
     }
     this.terrain.visible = this.state.showTopo;
+    this._markShadowsDirty();
   }
 
   _replaceTerrainMaterial() {
@@ -531,6 +541,7 @@ export class SceneController {
         this.monitoringBatch.dispose();
         this.monitoringBatch = null;
       }
+      this._markShadowsDirty();
       return;
     }
     const settings = {
@@ -554,6 +565,7 @@ export class SceneController {
       });
       this.monitorGroup.add(this.monitoringBatch.group);
     }
+    this._markShadowsDirty();
   }
 
   _updateFrustumAndShadows() {
@@ -573,6 +585,7 @@ export class SceneController {
     this.dirLight.shadow.camera.top = shadowDistance;
     this.dirLight.shadow.camera.bottom = -shadowDistance;
     this.dirLight.shadow.camera.updateProjectionMatrix();
+    this._markShadowsDirty();
     this._rebuildHelpers(
       bounds.spanXY,
       new this.THREE.Vector3(bounds.cx, bounds.cy, zCenter),
@@ -600,6 +613,7 @@ export class SceneController {
       }
       this.bounds = null;
       this._rebuildHelpers();
+      this._markShadowsDirty();
       this.scheduler.invalidate('mesh-clear');
       return;
     }
@@ -629,6 +643,7 @@ export class SceneController {
   setTerrainVisible(value) {
     this.state.showTopo = value;
     if (this.terrain) this.terrain.visible = value;
+    this._markShadowsDirty();
     this.scheduler.invalidate('terrain-visible');
   }
 
@@ -792,6 +807,8 @@ export class SceneController {
       drawCalls: this.renderer.info?.render?.calls || 0,
       objectCount,
       monitoringDrawObjects: this.monitoringBatch?.drawObjectCount || 0,
+      shadowAutoUpdate: this.renderer.shadowMap?.autoUpdate,
+      shadowNeedsUpdate: this.renderer.shadowMap?.needsUpdate,
     };
   }
 

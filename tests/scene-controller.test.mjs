@@ -161,6 +161,32 @@ function createControllerFixture() {
   return { controller, dom, labelRenderer, renderer, scheduler };
 }
 
+test('shadow map updates only when world-space shadow inputs change', () => {
+  const scene = createControllerFixture();
+  assert.equal(scene.renderer.shadowMap.autoUpdate, false);
+
+  scene.controller.setMesh(fixtureMesh());
+  const afterMesh = scene.controller.getDiagnostics().shadowInvalidations;
+  assert.ok(afterMesh > 0);
+  scene.renderer.shadowMap.needsUpdate = false;
+
+  scene.controller.setTerrainOpacity(0.5);
+  scene.controller.setSolidColor('#808080');
+  scene.controller.setPresetView('plan');
+  assert.equal(
+    scene.controller.getDiagnostics().shadowInvalidations,
+    afterMesh,
+  );
+  assert.equal(scene.renderer.shadowMap.needsUpdate, false);
+
+  scene.controller.setMonitoring(fixtureMonitoring());
+  assert.equal(
+    scene.controller.getDiagnostics().shadowInvalidations,
+    afterMesh + 1,
+  );
+  assert.equal(scene.renderer.shadowMap.needsUpdate, true);
+});
+
 test('opacity change mutates material without rebuilding geometry', () => {
   const scene = createControllerFixture();
   scene.controller.setMesh(fixtureMesh());

@@ -21,6 +21,7 @@ import { parseMonitoringCsv } from './monitoring-core.js';
 import { createRenderScheduler } from './render-scheduler.js';
 import { SceneController } from './scene-controller.js';
 
+const TEST_MODE = new URLSearchParams(location.search).has('test');
 const state = {
   ...DEFAULT_STATE,
   mesh: null,
@@ -28,9 +29,21 @@ const state = {
   rawGeometry: null,
   dataSource: 'none',
 };
+const runtimeDiagnostics = {
+  loaderSource: 'none',
+  workerSource: 'none',
+  lastWorkerOperation: 'none',
+  loadRequests: 0,
+  abortedRequests: 0,
+  ignoredResponses: 0,
+  lastRequestId: null,
+  lastWorkerRequestId: null,
+};
 let dxfFile = null;
 let csvFile = null;
 let sceneController;
+let nextLoadRequestId = 1;
+let activeLoadRequest = null;
 
 const container = document.getElementById('canvas-container');
 const scheduler = createRenderScheduler({
@@ -64,6 +77,16 @@ const dxfClient = createDxfClient({
     return { rawGeometry, mesh };
   },
   onProgress(progress) {
+    runtimeDiagnostics.lastWorkerRequestId = progress.id || null;
+    if (progress.stage === 'sync-fallback') {
+      runtimeDiagnostics.workerSource = 'sync';
+      runtimeDiagnostics.lastWorkerOperation = activeLoadRequest?.kind === 'reprocess'
+        ? 'reprocess'
+        : 'parse';
+    } else if (progress.stage === 'parse' || progress.stage === 'reprocess') {
+      runtimeDiagnostics.workerSource = 'worker';
+      runtimeDiagnostics.lastWorkerOperation = progress.stage;
+    }
     if (progress.stage === 'parse') setStatus('Parsing DXF di worker...');
     if (progress.stage === 'reprocess') setStatus('Re-processing mesh...');
     if (progress.stage === 'sync-fallback') {
@@ -73,6 +96,38 @@ const dxfClient = createDxfClient({
 });
 const dataLoader = createDataLoader({ dxfClient });
 
+function beginLoadRequest(kind) {
+  if (activeLoadRequest) {
+    activeLoadRequest.controller.abort();
+    dxfClient.dispose();
+    runtimeDiagnostics.abortedRequests += 1;
+  }
+  const request = {
+    id: `load-${nextLoadRequestId}`,
+    kind,
+    controller: new AbortController(),
+  };
+  nextLoadRequestId += 1;
+  activeLoadRequest = request;
+  runtimeDiagnostics.loadRequests += 1;
+  runtimeDiagnostics.lastRequestId = request.id;
+  return request;
+}
+
+function isCurrentLoadRequest(request) {
+  return activeLoadRequest === request && !request.controller.signal.aborted;
+}
+
+function ignoreStaleLoadRequest(request) {
+  if (isCurrentLoadRequest(request)) return false;
+  runtimeDiagnostics.ignoredResponses += 1;
+  return true;
+}
+
+function finishLoadRequest(request) {
+  if (activeLoadRequest === request) activeLoadRequest = null;
+}
+
 const LOADING = document.getElementById('loading');
 const STATUS = document.getElementById('status');
 const ERROR_CONTAINER = document.getElementById('error-container');
@@ -80,6 +135,19 @@ const MODE_INDICATOR = document.getElementById('mode-indicator');
 const UPLOAD_SECTION = document.getElementById('upload-section');
 const UPLOAD_TOGGLE = document.getElementById('upload-section-toggle');
 const REPROCESS_BTN = document.getElementById('reprocess-btn');
+const pendingControlUpdates = new Map();
+let controlFrameId = null;
+
+function scheduleControlUpdate(key, update) {
+  pendingControlUpdates.set(key, update);
+  if (controlFrameId != null) return;
+  controlFrameId = requestAnimationFrame(() => {
+    controlFrameId = null;
+    const updates = [...pendingControlUpdates.values()];
+    pendingControlUpdates.clear();
+    for (const applyUpdate of updates) applyUpdate();
+  });
+}
 
 function setStatus(message) {
   STATUS.textContent = message;
@@ -188,6 +256,8 @@ function updateUIMode() {
 function applyDxfResult(result) {
   state.rawGeometry = result.rawGeometry;
   state.mesh = result.mesh;
+  if (result.source) runtimeDiagnostics.loaderSource = result.source;
+  if (result.source === 'cache') runtimeDiagnostics.workerSource = 'cache';
   updateUIMode();
   sceneController.setMesh(result.mesh);
   REPROCESS_BTN.style.display = 'block';
@@ -210,23 +280,30 @@ async function fetchMonitoring(signal) {
 }
 
 async function tryAutoLoad() {
+  const request = beginLoadRequest('auto');
   LOADING.classList.remove('hidden');
   setStatus('Mencari data di repo...');
-  const controller = new AbortController();
   try {
     const [monitoringResult, dxfResult] = await Promise.allSettled([
-      fetchMonitoring(controller.signal),
-      dataLoader.loadAutoData({ settings: state, signal: controller.signal }),
+      fetchMonitoring(request.controller.signal),
+      dataLoader.loadAutoData({
+        settings: state,
+        signal: request.controller.signal,
+      }),
     ]);
+    if (ignoreStaleLoadRequest(request)) return false;
     if (monitoringResult.status === 'fulfilled') {
       applyMonitoring(monitoringResult.value);
     } else {
-      console.warn('Monitoring auto-load failed:', monitoringResult.reason);
+      console.warn(
+        `Monitoring auto-load failed [${request.id}]:`,
+        monitoringResult.reason,
+      );
     }
     if (dxfResult.status === 'fulfilled') {
       applyDxfResult(dxfResult.value);
     } else {
-      console.warn('DXF auto-load failed:', dxfResult.reason);
+      console.warn(`DXF auto-load failed [${request.id}]:`, dxfResult.reason);
     }
     if (
       monitoringResult.status !== 'fulfilled'
@@ -240,54 +317,108 @@ async function tryAutoLoad() {
     setPresetView('iso');
     return true;
   } catch (error) {
-    console.warn('Auto-load failed:', error);
+    if (ignoreStaleLoadRequest(request)) return false;
+    console.warn(`Auto-load failed [${request.id}]:`, error);
     setModeManual();
     return false;
   } finally {
-    LOADING.classList.add('hidden');
+    if (isCurrentLoadRequest(request)) {
+      LOADING.classList.add('hidden');
+      finishLoadRequest(request);
+    }
   }
 }
 
 async function loadFilesManual() {
+  const request = beginLoadRequest('manual');
+  const selectedDxf = dxfFile;
+  const selectedCsv = csvFile;
   clearError();
   LOADING.classList.remove('hidden');
   try {
-    let monitoring = null;
-    let dxfResult = null;
-    if (csvFile) {
-      setStatus('Membaca CSV...');
-      monitoring = parseMonitoringCsv(await csvFile.text(), window.Papa);
-    }
-    if (dxfFile) {
-      setStatus('Membaca DXF...');
-      dxfResult = await dataLoader.loadManualDxf({
-        buffer: await dxfFile.arrayBuffer(),
-        settings: state,
-      });
-    }
+    const monitoringPromise = selectedCsv
+      ? selectedCsv.text().then((text) => parseMonitoringCsv(text, window.Papa))
+      : Promise.resolve(null);
+    const dxfPromise = selectedDxf
+      ? selectedDxf.arrayBuffer().then((buffer) => dataLoader.loadManualDxf({
+          buffer,
+          settings: state,
+          signal: request.controller.signal,
+        }))
+      : Promise.resolve(null);
+    if (selectedCsv) setStatus('Membaca CSV...');
+    if (selectedDxf) setStatus('Membaca DXF...');
+    const [monitoringOutcome, dxfOutcome] = await Promise.allSettled([
+      monitoringPromise,
+      dxfPromise,
+    ]);
+    if (ignoreStaleLoadRequest(request)) return;
+    if (monitoringOutcome.status === 'rejected') throw monitoringOutcome.reason;
+    if (dxfOutcome.status === 'rejected') throw dxfOutcome.reason;
+    const monitoring = monitoringOutcome.value;
+    const dxfResult = dxfOutcome.value;
     if (monitoring) applyMonitoring(monitoring);
     if (dxfResult) applyDxfResult(dxfResult);
     setModeLoaded('manual');
     updateStats();
     setPresetView('iso');
-    LOADING.classList.add('hidden');
   } catch (error) {
-    console.error(error);
+    if (ignoreStaleLoadRequest(request)) return;
+    console.error(`Manual load failed [${request.id}]:`, error);
     showError(`Error: ${error.message}`);
+  } finally {
+    if (isCurrentLoadRequest(request)) {
+      LOADING.classList.add('hidden');
+      finishLoadRequest(request);
+    }
   }
+}
+
+function cloneRawGeometry(rawGeometry) {
+  if (rawGeometry.kind === 'points') {
+    return {
+      ...rawGeometry,
+      points: rawGeometry.points.slice(),
+      typeCount: { ...rawGeometry.typeCount },
+    };
+  }
+  const mesh = rawGeometry.mesh;
+  return {
+    ...rawGeometry,
+    mesh: {
+      ...mesh,
+      x: mesh.x.slice(),
+      y: mesh.y.slice(),
+      z: mesh.z.slice(),
+      i: mesh.i.slice(),
+      j: mesh.j.slice(),
+      k: mesh.k.slice(),
+      stats: { ...mesh.stats },
+    },
+  };
 }
 
 async function reprocessMesh() {
   if (!state.rawGeometry) return;
+  const request = beginLoadRequest('reprocess');
+  const workingGeometry = cloneRawGeometry(state.rawGeometry);
+  clearError();
   LOADING.classList.remove('hidden');
   setStatus('Re-processing mesh...');
   try {
-    const result = await dxfClient.reprocess(state.rawGeometry, state);
+    const result = await dxfClient.reprocess(workingGeometry, state);
+    if (ignoreStaleLoadRequest(request)) return;
     applyDxfResult(result);
     updateStats();
-    LOADING.classList.add('hidden');
   } catch (error) {
+    if (ignoreStaleLoadRequest(request)) return;
+    console.error(`DXF reprocess failed [${request.id}]:`, error);
     showError(`Error: ${error.message}`);
+  } finally {
+    if (isCurrentLoadRequest(request)) {
+      LOADING.classList.add('hidden');
+      finishLoadRequest(request);
+    }
   }
 }
 
@@ -325,7 +456,6 @@ window.addEventListener('keydown', (event) => {
   if (view) setPresetView(view);
 });
 
-const MESH_CONTROLS = new Set(['voxel', 'maxslope', 'edgemult', 'maxedge']);
 function wireRange(id, valueId, key, suffix, transform) {
   const slider = document.getElementById(id);
   const valueElement = document.getElementById(valueId);
@@ -335,16 +465,18 @@ function wireRange(id, valueId, key, suffix, transform) {
     state[key] = value;
     valueElement.textContent = `${rawValue}${suffix}`;
     if (id === 'opacity') sceneController.setTerrainOpacity(value);
-    if (id === 'zexag') sceneController.setZExaggeration(value);
-    if (id === 'scale-h') sceneController.setMonitoringOptions({ scaleH: value });
-    if (id === 'scale-v') sceneController.setMonitoringOptions({ scaleV: value });
-    if (!MESH_CONTROLS.has(id) && ![
-      'opacity',
-      'zexag',
-      'scale-h',
-      'scale-v',
-    ].includes(id)) {
-      scheduler.invalidate(`range-${id}`);
+    if (id === 'zexag') {
+      scheduleControlUpdate('zexag', () => {
+        sceneController.setZExaggeration(state.zExag);
+      });
+    }
+    if (id === 'scale-h' || id === 'scale-v') {
+      scheduleControlUpdate('monitoring-scale', () => {
+        sceneController.setMonitoringOptions({
+          scaleH: state.scaleH,
+          scaleV: state.scaleV,
+        });
+      });
     }
   });
 }
@@ -445,7 +577,9 @@ document.getElementById('grid-spacing').addEventListener('input', (event) => {
   const value = Number(event.target.value);
   state.gridSpacing = value;
   document.getElementById('grid-spacing-val').textContent = `${value} m`;
-  sceneController.setGridOptions({ gridSpacing: value });
+  scheduleControlUpdate('grid-spacing', () => {
+    sceneController.setGridOptions({ gridSpacing: state.gridSpacing });
+  });
 });
 
 window.addEventListener('resize', () => sceneController.resize());
@@ -453,18 +587,67 @@ document.addEventListener('visibilitychange', () => {
   scheduler.setVisible(!document.hidden);
 });
 window.addEventListener('pagehide', () => {
+  activeLoadRequest?.controller.abort();
+  activeLoadRequest = null;
+  if (controlFrameId != null) cancelAnimationFrame(controlFrameId);
+  controlFrameId = null;
+  pendingControlUpdates.clear();
   dxfClient.dispose();
   sceneController.dispose();
 }, { once: true });
 
-if (new URLSearchParams(location.search).has('test')) {
+async function currentGeometryDigest() {
+  if (!state.mesh) return null;
+  const coordinateBytes = (
+    state.mesh.x.length + state.mesh.y.length + state.mesh.z.length
+  ) * Float64Array.BYTES_PER_ELEMENT;
+  const indexBytes = (
+    state.mesh.i.length + state.mesh.j.length + state.mesh.k.length
+  ) * Uint32Array.BYTES_PER_ELEMENT;
+  const serialized = new ArrayBuffer(coordinateBytes + indexBytes);
+  const view = new DataView(serialized);
+  let offset = 0;
+  for (const values of [state.mesh.x, state.mesh.y, state.mesh.z]) {
+    for (const value of values) {
+      view.setFloat64(offset, value, true);
+      offset += Float64Array.BYTES_PER_ELEMENT;
+    }
+  }
+  for (const values of [state.mesh.i, state.mesh.j, state.mesh.k]) {
+    for (const value of values) {
+      view.setUint32(offset, value, true);
+      offset += Uint32Array.BYTES_PER_ELEMENT;
+    }
+  }
+  const digest = new Uint8Array(
+    await crypto.subtle.digest('SHA-256', serialized),
+  );
+  return [...digest]
+    .map((value) => value.toString(16).padStart(2, '0'))
+    .join('');
+}
+
+if (TEST_MODE) {
   window.__SLOPE_VIEWER_TEST_API__ = {
-    diagnostics: () => sceneController.getDiagnostics(),
+    diagnostics: () => ({
+      ...sceneController.getDiagnostics(),
+      ...runtimeDiagnostics,
+      dataSource: state.dataSource,
+      pendingControlUpdates: pendingControlUpdates.size,
+      activeRequestId: activeLoadRequest?.id || null,
+    }),
+    geometryDigest: currentGeometryDigest,
     handles: () => sceneController.debugHandles(),
     state: () => ({
       dataSource: state.dataSource,
       hasMesh: Boolean(state.mesh),
       hasMonitoring: Boolean(state.monitoring),
+      currentView: state.currentView,
+      opacity: state.opacity,
+      zExag: state.zExag,
+      gridSpacing: state.gridSpacing,
+      showGrid: state.showGrid,
+      showLabels: state.showLabels,
     }),
   };
 }
