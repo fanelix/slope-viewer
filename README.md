@@ -112,6 +112,10 @@ npm run build:site
 Build produksi dibuat di `_site/`. File gzip dan manifest hanya merupakan
 artifact build dan tidak perlu dikomit.
 
+Bukti kesetaraan geometri/visual, benchmark memori, budget draw call, dan drill
+penggantian mingguan tersedia di
+[`docs/performance-verification.md`](docs/performance-verification.md).
+
 ## Privasi
 
 DXF dan CSV tersimpan di repositori serta artifact Pages. Pastikan pengaturan
