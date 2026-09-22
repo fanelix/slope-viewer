@@ -1,2 +1,5 @@
 .worktrees/
-
+node_modules/
+.test-browser/
+playwright-report/
+test-results/
