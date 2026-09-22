@@ -32,6 +32,9 @@ jobs:
       - name: Run unit, integration, and visual tests
         run: npm test
 
+      - name: Validate the full weekly replacement path
+        run: npm run test:weekly
+
       - name: Build validated Pages artifact
         run: npm run build:site
 

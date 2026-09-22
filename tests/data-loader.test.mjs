@@ -248,7 +248,7 @@ test('manifest failure falls back to unversioned canonical raw DXF', async () =>
   assert.deepEqual(calls, ['manifest', 'raw', 'worker:parse']);
 });
 
-test('hash-mismatched gzip falls back but mismatched raw fails before parsing', async () => {
+test('hash-mismatched assets use bounded canonical-path recovery', async () => {
   const fallbackCalls = [];
   const fallbackLoader = createDataLoader(fixtureDependencies({
     calls: fallbackCalls,
@@ -273,19 +273,52 @@ test('hash-mismatched gzip falls back but mismatched raw fails before parsing', 
     decompressionError: new Error('corrupt'),
     rawBytes: STALE_BYTES,
   }));
-  await assert.rejects(
-    failingLoader.loadAutoData({ settings: DEFAULT_STATE }),
-    (error) => error.name === 'DataLoadError'
-      && error.stage === 'raw'
-      && error.manualRequired === true,
-  );
+  const recovered = await failingLoader.loadAutoData({ settings: DEFAULT_STATE });
+  assert.equal(recovered.source, 'raw-recovered');
+  assert.equal(recovered.cacheStored, false);
   assert.deepEqual(failureCalls, [
     'manifest',
     'cache:get',
     'gzip',
     'raw',
+    'raw',
+    'worker:parse',
   ]);
 });
+
+for (const manifestCase of [
+  {
+    name: 'wrong hash',
+    mutate(manifest) { manifest.dxf.sha256 = '0'.repeat(64); },
+  },
+  {
+    name: 'wrong byte count',
+    mutate(manifest) { manifest.dxf.bytes += 1; },
+  },
+  {
+    name: 'wrong asset paths',
+    mutate(manifest) {
+      manifest.dxf.path = 'data/stale-topography.dxf';
+      manifest.dxf.gzipPath = 'data/stale-topography.dxf.gz';
+    },
+  },
+]) {
+  test(`valid-looking manifest with ${manifestCase.name} recovers canonical raw DXF`, async () => {
+    const calls = [];
+    const manifest = manifestFor();
+    manifestCase.mutate(manifest);
+    const loader = createDataLoader(fixtureDependencies({ calls, manifest }));
+
+    const result = await loader.loadAutoData({ settings: DEFAULT_STATE });
+
+    assert.equal(result.source, 'raw-recovered');
+    assert.equal(result.sourceHash, sha256(copyBuffer(RAW_BYTES)));
+    assert.equal(result.cacheStored, false);
+    assert.equal(result.mesh.i.length, 1);
+    assert.equal(calls.filter((call) => call === 'worker:parse').length, 1);
+    assert.equal(calls.includes('cache:put'), false);
+  });
+}
 
 test('raw 404 produces a typed manual-mode error', async () => {
   const calls = [];
@@ -301,7 +334,7 @@ test('raw 404 produces a typed manual-mode error', async () => {
       && error.stage === 'raw'
       && error.manualRequired === true,
   );
-  assert.deepEqual(calls, ['manifest', 'cache:get', 'gzip', 'raw']);
+  assert.deepEqual(calls, ['manifest', 'cache:get', 'gzip', 'raw', 'raw']);
 });
 
 test('abort is preserved and does not enter fallback paths', async () => {

@@ -106,11 +106,14 @@ dengan Parameter Baru**.
 ```bash
 npm ci
 npm test
+npm run test:weekly
 npm run build:site
 ```
 
 Build produksi dibuat di `_site/`. File gzip dan manifest hanya merupakan
-artifact build dan tidak perlu dikomit.
+artifact build dan tidak perlu dikomit. `npm run test:weekly` mengulang seluruh
+suite dengan fixture DXF pengganti sebagai sumber produksi; jalankan
+`npm run build:site` sesudahnya untuk mengembalikan `_site/` ke DXF kanonik.
 
 Bukti kesetaraan geometri/visual, benchmark memori, budget draw call, dan drill
 penggantian mingguan tersedia di

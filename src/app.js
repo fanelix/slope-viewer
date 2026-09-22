@@ -171,6 +171,8 @@ function setModeManual() {
   state.dataSource = 'none';
   MODE_INDICATOR.textContent = 'Manual';
   MODE_INDICATOR.className = '';
+  UPLOAD_SECTION.classList.remove('section-collapsed');
+  UPLOAD_TOGGLE.classList.remove('collapsed');
 }
 
 function setModeLoaded(source) {
@@ -287,6 +289,7 @@ async function fetchMonitoring(signal) {
 
 async function tryAutoLoad() {
   const request = beginLoadRequest('auto');
+  clearError();
   LOADING.classList.remove('hidden');
   setStatus('Mencari data di repo...');
   try {
@@ -310,12 +313,11 @@ async function tryAutoLoad() {
       applyDxfResult(dxfResult.value);
     } else {
       console.warn(`DXF auto-load failed [${request.id}]:`, dxfResult.reason);
-    }
-    if (
-      monitoringResult.status !== 'fulfilled'
-      && dxfResult.status !== 'fulfilled'
-    ) {
       setModeManual();
+      showError(
+        'Topografi otomatis gagal dimuat. Unggah file DXF untuk melanjutkan.',
+      );
+      updateStats();
       return false;
     }
     setModeLoaded('auto');
@@ -592,15 +594,33 @@ window.addEventListener('resize', () => sceneController.resize());
 document.addEventListener('visibilitychange', () => {
   scheduler.setVisible(!document.hidden);
 });
-window.addEventListener('pagehide', () => {
+let pageDestroyed = false;
+
+function cancelTransientWork() {
   activeLoadRequest?.controller.abort();
   activeLoadRequest = null;
+  dxfClient.dispose();
   if (controlFrameId != null) cancelAnimationFrame(controlFrameId);
   controlFrameId = null;
   pendingControlUpdates.clear();
-  dxfClient.dispose();
+}
+
+window.addEventListener('pagehide', (event) => {
+  cancelTransientWork();
+  if (event.persisted) {
+    scheduler.setVisible(false);
+    return;
+  }
+  pageDestroyed = true;
   sceneController.dispose();
-}, { once: true });
+});
+
+window.addEventListener('pageshow', (event) => {
+  if (!event.persisted || pageDestroyed) return;
+  scheduler.setVisible(!document.hidden);
+  sceneController.resize();
+  if (!state.mesh) tryAutoLoad();
+});
 
 async function currentGeometryDigest() {
   if (!state.mesh) return null;

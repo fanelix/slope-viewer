@@ -1,19 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
-
 import {
   legacyExtractDxf,
   loadLegacyDependencies,
 } from './helpers/legacy-reference.mjs';
 import { parseDxfGeometry, validateMesh } from '../src/dxf-core.js';
 import { geometryDigest } from './helpers/geometry-digest.mjs';
+import { readProductionDxf } from './helpers/production-dxf.mjs';
 
 test('current canonical DXF remains valid and matches the legacy reference', async () => {
-  const text = await readFile(
-    new URL('../data/topografi.dxf', import.meta.url),
-    'utf8',
-  );
+  const text = await readProductionDxf('utf8');
   const dependencies = await loadLegacyDependencies();
   const legacy = legacyExtractDxf(text, dependencies);
   const optimized = parseDxfGeometry(text, dependencies);

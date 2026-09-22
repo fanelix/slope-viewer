@@ -221,13 +221,23 @@ export function createDataLoader(dependencies = {}) {
     };
   };
 
-  const loadRaw = async ({ manifest, settings, signal, settingsFingerprint }) => {
+  const loadRaw = async ({
+    manifest,
+    settings,
+    signal,
+    settingsFingerprint,
+    source = 'raw',
+    cacheMode,
+  }) => {
     const path = manifest
       ? versionedPath(manifest.dxf.path, manifest.dxf.sha256)
       : AUTO_LOAD_PATHS.dxf;
     try {
       throwIfAborted(signal);
-      const response = await fetchFn(path, { signal });
+      const response = await fetchFn(path, {
+        signal,
+        ...(cacheMode ? { cache: cacheMode } : {}),
+      });
       if (!response.ok) {
         throw new Error(`Raw DXF request failed with HTTP ${response.status}`);
       }
@@ -244,7 +254,7 @@ export function createDataLoader(dependencies = {}) {
         key,
         settings,
         settingsFingerprint,
-        source: 'raw',
+        source,
         signal,
         sourceHash,
       });
@@ -330,12 +340,31 @@ export function createDataLoader(dependencies = {}) {
             sourceHash,
           });
         } catch (error) {
-          if (isAbort(error, signal) || error instanceof DataLoadError) throw error;
+          if (isAbort(error, signal)) throw error;
           // Gzip is optional; canonical raw DXF remains authoritative.
         }
       }
 
-      return loadRaw({ manifest, settings, signal, settingsFingerprint });
+      try {
+        return await loadRaw({
+          manifest,
+          settings,
+          signal,
+          settingsFingerprint,
+        });
+      } catch (error) {
+        if (isAbort(error, signal)) throw error;
+        // A structurally valid manifest can still be stale or corrupt. Retry
+        // the fixed canonical path once without trusting or caching its metadata.
+        return loadRaw({
+          manifest: null,
+          settings,
+          signal,
+          settingsFingerprint,
+          source: 'raw-recovered',
+          cacheMode: 'no-store',
+        });
+      }
     },
 
     async loadManualDxf({ buffer, settings, signal, manifest } = {}) {

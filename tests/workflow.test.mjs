@@ -32,6 +32,7 @@ test('workflow validates before deploy and never deploys pull requests', async (
   assert.match(verify, /npm ci/);
   assert.match(verify, /prepareChromium/);
   assert.match(verify, /npm test/);
+  assert.match(verify, /npm run test:weekly/);
   assert.match(verify, /npm run build:site/);
   assert.match(
     verify,

@@ -12,6 +12,7 @@ import {
   legacyExtractDxf,
   loadLegacyDependencies,
 } from './helpers/legacy-reference.mjs';
+import { readProductionDxf } from './helpers/production-dxf.mjs';
 
 const DEFAULT_MESH_SETTINGS = Object.freeze({
   voxelSize: 2,
@@ -26,7 +27,7 @@ async function read(relativePath) {
 }
 
 test('optimized extraction is byte-equivalent to the legacy reference', async () => {
-  const text = await read('../data/topografi.dxf');
+  const text = await readProductionDxf('utf8');
   const dependencies = await loadLegacyDependencies();
   const legacy = legacyExtractDxf(text, dependencies);
   const optimized = parseDxfGeometry(text, dependencies);

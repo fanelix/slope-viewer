@@ -119,9 +119,13 @@ export async function buildSite({
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === SCRIPT_PATH) {
+  const configuredDxfPath = process.env.SLOPE_VIEWER_DXF_PATH;
   const result = await buildSite({
     root: REPOSITORY_ROOT,
     outDir: join(REPOSITORY_ROOT, '_site'),
+    dxfPath: configuredDxfPath
+      ? resolve(REPOSITORY_ROOT, configuredDxfPath)
+      : join(REPOSITORY_ROOT, 'data/topografi.dxf'),
   });
   console.log(
     `Built _site: ${result.geometryStats.vertexCount.toLocaleString()} vertices, ${result.geometryStats.validTriangles.toLocaleString()} triangles, ${result.manifest.dxf.gzipBytes.toLocaleString()} gzip bytes`,

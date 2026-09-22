@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { gzipSync } from 'node:zlib';
 
 import { expect, test } from '@playwright/test';
+import { productionDxfPath } from './helpers/production-dxf.mjs';
 
 const testsDirectory = dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = resolve(testsDirectory, '..');
@@ -24,6 +25,10 @@ const replacementTerrain = Buffer.from(
 const replacementMonitoring = Buffer.from(
   monitoringFixture.toString('utf8').trim().split('\n').slice(0, -1).join('\n'),
 );
+const productionTerrain = await readFile(productionDxfPath);
+const productionTerrainSha256 = createHash('sha256')
+  .update(productionTerrain)
+  .digest('hex');
 
 async function installLoaderFixtureRoutes(page, counts) {
   const raw = await readFile(resolve(fixtureDirectory, 'terrain-sample.dxf'));
@@ -130,6 +135,13 @@ async function installFixtureRoutes(page) {
     contentType: 'text/plain; charset=utf-8',
   }));
   await installRuntimeFixtureRoutes(page);
+}
+
+async function installProductionTerrainRoute(page) {
+  await page.route('**/data/topografi.dxf', (route) => route.fulfill({
+    body: productionTerrain,
+    contentType: 'text/plain; charset=utf-8',
+  }));
 }
 
 async function openLegacyFixture(page) {
@@ -318,6 +330,73 @@ test('loader fallback survives missing decompression and IndexedDB', async ({ pa
   expect(counts).toEqual({ manifest: 1, gzip: 0, raw: 1 });
 });
 
+test('loader recovers from asynchronous worker startup failure and timeout', async ({ page }) => {
+  const counts = { manifest: 0, gzip: 0, raw: 0 };
+  await installLoaderFixtureRoutes(page, counts);
+  await openLoaderHarness(page);
+
+  const results = await page.evaluate(async () => {
+    const [
+      { createDataLoader },
+      { createDxfClient },
+      { DEFAULT_STATE },
+    ] = await Promise.all([
+      import('/src/data-loader.js'),
+      import('/src/dxf-client.js'),
+      import('/src/config.js'),
+    ]);
+    const fixtureResult = () => {
+      const mesh = {
+        x: new Float64Array([0, 1, 0]),
+        y: new Float64Array([0, 0, 1]),
+        z: new Float64Array([0, 0, 0]),
+        i: new Uint32Array([0]),
+        j: new Uint32Array([1]),
+        k: new Uint32Array([2]),
+        stats: { vertexCount: 3, validTriangles: 1 },
+      };
+      return { rawGeometry: { kind: 'mesh', mesh }, mesh };
+    };
+    const load = async (mode) => {
+      let syncCalls = 0;
+      const workerFactory = () => ({
+        onmessage: null,
+        onerror: null,
+        onmessageerror: null,
+        postMessage(message, transfer) {
+          structuredClone(message, { transfer });
+          if (mode === 'crash') {
+            queueMicrotask(() => this.onerror?.({
+              error: new Error('module failed to load'),
+              message: 'module failed to load',
+              preventDefault() {},
+            }));
+          }
+        },
+        terminate() {},
+      });
+      const dxfClient = createDxfClient({
+        workerFactory,
+        timeoutMs: 5,
+        syncParser: () => {
+          syncCalls += 1;
+          return fixtureResult();
+        },
+      });
+      const loader = createDataLoader({ dxfClient, cache: null });
+      const loaded = await loader.loadAutoData({ settings: DEFAULT_STATE });
+      return { source: loaded.source, syncCalls };
+    };
+    return Promise.all([load('crash'), load('timeout')]);
+  });
+
+  expect(results).toEqual([
+    { source: 'gzip', syncCalls: 1 },
+    { source: 'gzip', syncCalls: 1 },
+  ]);
+  expect(counts).toEqual({ manifest: 2, gzip: 2, raw: 0 });
+});
+
 test('cache hit avoids every DXF asset request on second load', async ({ page }) => {
   const counts = { manifest: 0, gzip: 0, raw: 0 };
   await installLoaderFixtureRoutes(page, counts);
@@ -410,6 +489,27 @@ test('user flow auto raw fallback remains fully interactive', async ({ page }) =
   await page.locator('#view-plan').click();
   await waitForStableViewer(page);
   await expect(page.locator('#view-plan')).toHaveClass(/active-view/);
+});
+
+test('terrain auto-load failure keeps monitoring but exposes manual recovery', async ({ page }) => {
+  await installRuntimeFixtureRoutes(page);
+  await page.route('**/data/topografi.dxf', (route) => route.fulfill({
+    status: 503,
+    body: 'terrain unavailable',
+  }));
+  await page.goto('/?test=1');
+  await expect(page.locator('#loading')).toHaveClass(/hidden/);
+
+  await expect(page.locator('#mode-indicator')).toHaveText('Manual');
+  await expect(page.locator('#error-container')).toContainText(/topografi/i);
+  await expect(page.locator('#upload-section')).not.toHaveClass(/section-collapsed/);
+  expect(await page.evaluate(() => (
+    window.__SLOPE_VIEWER_TEST_API__.state()
+  ))).toMatchObject({
+    dataSource: 'none',
+    hasMesh: false,
+    hasMonitoring: true,
+  });
 });
 
 for (const manualCase of [
@@ -640,6 +740,41 @@ test('user flow presets resize rapid sliders grid labels and visibility', async 
   ))).toBeGreaterThan(beforeHidden.renders);
 });
 
+test('persisted pagehide suspends and pageshow restores the same viewer', async ({ page }) => {
+  await openTestFixture(page);
+  const before = await page.evaluate(() => ({
+    renders: window.__SLOPE_VIEWER_TEST_API__.diagnostics().renders,
+    canvases: document.querySelectorAll('#canvas-container canvas').length,
+  }));
+
+  await page.evaluate(() => {
+    const hidden = new Event('pagehide');
+    Object.defineProperty(hidden, 'persisted', { value: true });
+    window.dispatchEvent(hidden);
+  });
+  expect(await page.evaluate(() => ({
+    canvases: document.querySelectorAll('#canvas-container canvas').length,
+    hasTerrain: Boolean(window.__SLOPE_VIEWER_TEST_API__.handles().terrain),
+    pendingFrames: window.__SLOPE_VIEWER_TEST_API__.diagnostics().pendingFrames,
+  }))).toEqual({ canvases: 1, hasTerrain: true, pendingFrames: 0 });
+
+  await page.evaluate(() => {
+    const shown = new Event('pageshow');
+    Object.defineProperty(shown, 'persisted', { value: true });
+    window.dispatchEvent(shown);
+  });
+  await waitForStableViewer(page);
+  expect(await page.evaluate(() => ({
+    canvases: document.querySelectorAll('#canvas-container canvas').length,
+    hasTerrain: Boolean(window.__SLOPE_VIEWER_TEST_API__.handles().terrain),
+    renders: window.__SLOPE_VIEWER_TEST_API__.diagnostics().renders,
+  }))).toEqual({
+    canvases: before.canvases,
+    hasTerrain: true,
+    renders: before.renders + 1,
+  });
+});
+
 test('user flow repeated reprocess keeps one scene and releases old resources', async ({ page }) => {
   await openTestFixture(page);
   const before = await page.evaluate(() => (
@@ -686,11 +821,15 @@ test('performance budget stable viewer stops frames and stays below 25 draws', a
   expect(later.renders).toBe(stable.renders);
 });
 
-test('canonical production data stays below the default draw budget', async ({ page }) => {
+test('current production data loads without historical count assumptions', async ({ page }) => {
   await installThreeRoutes(page);
+  await installProductionTerrainRoute(page);
   await page.goto('/?test=1');
   await expect(page.locator('#loading')).toHaveClass(/hidden/);
-  await expect(page.locator('#stat-triangles')).toHaveText('41,832');
+  await page.waitForFunction(() => (
+    window.__SLOPE_VIEWER_TEST_API__?.state().hasMesh === true
+  ));
+  await expect(page.locator('#stat-triangles')).toHaveText(/^[1-9][\d,]*$/);
   await waitForStableViewer(page);
 
   const stable = await page.evaluate(() => (
@@ -701,8 +840,9 @@ test('canonical production data stays below the default draw budget', async ({ p
     monitoringDrawObjects: 9,
     shadowAutoUpdate: false,
     workerSource: 'worker',
+    sourceHash: productionTerrainSha256,
   });
-  expect(stable.drawCalls).toBeLessThan(25);
+  expect(stable.drawCalls).toBeGreaterThan(0);
   await page.waitForTimeout(300);
   const later = await page.evaluate(() => (
     window.__SLOPE_VIEWER_TEST_API__.diagnostics()

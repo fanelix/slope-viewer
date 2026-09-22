@@ -57,7 +57,7 @@ function failIfCalled() {
   throw new Error('synchronous parser must not be called');
 }
 
-test('client resolves a matching worker response and transfers the source buffer', async () => {
+test('client resolves a matching response and transfers an isolated source copy', async () => {
   const worker = new FakeWorker();
   const client = createDxfClient({
     workerFactory: () => worker,
@@ -66,7 +66,7 @@ test('client resolves a matching worker response and transfers the source buffer
   const source = fixtureBuffer();
   const pending = client.parse(source, DEFAULT_STATE);
 
-  assert.equal(source.byteLength, 0);
+  assert.ok(source.byteLength > 0);
   assert.equal(worker.messages[0].operation, 'parse');
   assert.equal(worker.transferCounts[0], 1);
   worker.respondSuccess(validFixtureResult());
@@ -145,7 +145,48 @@ test('worker-reported error rejects and always terminates the worker', async () 
   assert.equal(worker.terminateCount, 1);
 });
 
-test('worker crash after transfer does not read the detached source in fallback', async () => {
+test('asynchronous worker startup failure retries synchronously with intact source', async () => {
+  const worker = new FakeWorker();
+  let syncCalls = 0;
+  let fallbackSource;
+  const client = createDxfClient({
+    workerFactory: () => worker,
+    syncParser: (source) => {
+      syncCalls += 1;
+      fallbackSource = source;
+      return validFixtureResult();
+    },
+  });
+  const source = fixtureBuffer();
+  const pending = client.parse(source, DEFAULT_STATE);
+  worker.fail(new Error('worker crashed'));
+
+  assert.equal((await pending).mesh.i.length, 6);
+  assert.equal(source.byteLength, new TextEncoder().encode('fixture DXF').byteLength);
+  assert.equal(fallbackSource, source);
+  assert.equal(syncCalls, 1);
+  assert.equal(worker.terminateCount, 1);
+});
+
+test('worker timeout retries synchronously and terminates the worker', async () => {
+  const worker = new FakeWorker();
+  let syncCalls = 0;
+  const client = createDxfClient({
+    workerFactory: () => worker,
+    syncParser: () => {
+      syncCalls += 1;
+      return validFixtureResult();
+    },
+    timeoutMs: 5,
+  });
+
+  const result = await client.parse(fixtureBuffer(), DEFAULT_STATE);
+  assert.equal(result.mesh.i.length, 6);
+  assert.equal(syncCalls, 1);
+  assert.equal(worker.terminateCount, 1);
+});
+
+test('undecodable worker response retries synchronously', async () => {
   const worker = new FakeWorker();
   let syncCalls = 0;
   const client = createDxfClient({
@@ -155,28 +196,34 @@ test('worker crash after transfer does not read the detached source in fallback'
       return validFixtureResult();
     },
   });
-  const source = fixtureBuffer();
-  const pending = client.parse(source, DEFAULT_STATE);
-  worker.fail(new Error('worker crashed'));
 
-  await assert.rejects(pending, /worker crashed/);
-  assert.equal(source.byteLength, 0);
-  assert.equal(syncCalls, 0);
+  const pending = client.parse(fixtureBuffer(), DEFAULT_STATE);
+  worker.onmessageerror?.({});
+
+  assert.equal((await pending).mesh.i.length, 6);
+  assert.equal(syncCalls, 1);
   assert.equal(worker.terminateCount, 1);
 });
 
-test('timeout rejects the request and terminates the worker', async () => {
+test('asynchronous reprocess failure preserves raw geometry for sync recovery', async () => {
   const worker = new FakeWorker();
+  const rawGeometry = validFixtureResult().rawGeometry;
+  let fallbackGeometry;
   const client = createDxfClient({
     workerFactory: () => worker,
-    syncParser: failIfCalled,
-    timeoutMs: 5,
+    syncParser: (payload) => {
+      fallbackGeometry = payload;
+      return { rawGeometry: payload, mesh: payload.mesh };
+    },
   });
 
-  await assert.rejects(
-    client.parse(fixtureBuffer(), DEFAULT_STATE),
-    /timed out/i,
-  );
+  const pending = client.reprocess(rawGeometry, DEFAULT_STATE);
+  worker.fail(new Error('module worker failed after construction'));
+  const result = await pending;
+
+  assert.equal(fallbackGeometry, rawGeometry);
+  assert.equal(rawGeometry.mesh.x.byteLength, 64);
+  assert.equal(result.mesh.i.length, 6);
   assert.equal(worker.terminateCount, 1);
 });
 
@@ -195,7 +242,7 @@ test('shared raw and mesh buffers are transferred once and remain reprocessable'
   const reprocessPending = client.reprocess(first.rawGeometry, DEFAULT_STATE);
 
   assert.equal(reprocessWorker.transferCounts[0], 6);
-  assert.equal(first.rawGeometry.mesh.x.byteLength, 0);
+  assert.equal(first.rawGeometry.mesh.x.byteLength, 64);
   const workerRaw = reprocessWorker.messages[0].rawGeometry;
   reprocessWorker.respondSuccess({ rawGeometry: workerRaw, mesh: workerRaw.mesh });
   const second = await reprocessPending;

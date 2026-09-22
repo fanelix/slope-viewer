@@ -1,7 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
-import { readFile } from 'node:fs/promises';
 import { promisify } from 'node:util';
 
 import { parse3dFaceStream } from '../src/dxf-3dface-stream.js';
@@ -11,6 +10,7 @@ import {
   legacyExtractDxf,
   loadLegacyDependencies,
 } from './helpers/legacy-reference.mjs';
+import { readProductionDxf } from './helpers/production-dxf.mjs';
 
 const execFileAsync = promisify(execFile);
 
@@ -102,19 +102,12 @@ ENTITIES
 `;
 
 test('streaming parser exactly matches the canonical legacy geometry', async () => {
-  const text = await readFile(
-    new URL('../data/topografi.dxf', import.meta.url),
-    'utf8',
-  );
+  const text = await readProductionDxf('utf8');
   const dependencies = await loadLegacyDependencies();
   const streamed = parse3dFaceStream(text);
   const legacy = legacyExtractDxf(text, dependencies);
 
   assert.equal(streamed.supported, true);
-  assert.equal(
-    geometryDigest(streamed.mesh),
-    '8fd2580cef69c33fb15a5035a9e2b7308c0617ea5e1b35357636514c11e21a3b',
-  );
   assert.equal(geometryDigest(streamed.mesh), geometryDigest(legacy.mesh));
   assert.deepEqual(streamed.mesh.stats, legacy.mesh.stats);
   assert.deepEqual(streamed.typeCount, legacy.typeCount);

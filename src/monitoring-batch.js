@@ -125,6 +125,7 @@ export function createMonitoringBatch({
   const group = new THREE.Group();
   group.name = 'MonitoringBatch';
   let resources = new Set();
+  let instancedMeshes = new Set();
   let labelElements = [];
   let drawObjectCount = 0;
   let transforms = null;
@@ -137,6 +138,8 @@ export function createMonitoringBatch({
     }
     labelElements = [];
     while (group.children.length > 0) group.remove(group.children[0]);
+    for (const mesh of instancedMeshes) mesh.dispose();
+    instancedMeshes = new Set();
     for (const resource of resources) resource.dispose();
     resources = new Set();
     drawObjectCount = 0;
@@ -145,6 +148,11 @@ export function createMonitoringBatch({
   const own = (resource) => {
     resources.add(resource);
     return resource;
+  };
+
+  const ownInstancedMesh = (mesh) => {
+    instancedMeshes.add(mesh);
+    return mesh;
   };
 
   const build = (nextPoints, nextSettings) => {
@@ -171,11 +179,11 @@ export function createMonitoringBatch({
       const material = own(new THREE.MeshLambertMaterial({
         color,
       }));
-      const mesh = new THREE.InstancedMesh(
+      const mesh = ownInstancedMesh(new THREE.InstancedMesh(
         sphereGeometry,
         material,
         instances.length,
-      );
+      ));
       mesh.name = `MonitoringSpheres:${key}`;
       mesh.castShadow = true;
       const anchor = instances[0].matrix.slice(12, 15);
@@ -195,7 +203,12 @@ export function createMonitoringBatch({
     }
 
     if (transforms.shafts.length > 0) {
-      const positions = new Float32Array(transforms.shaftPositions);
+      const shaftAnchor = transforms.shaftPositions.slice(0, 3);
+      const positions = new Float32Array(
+        transforms.shaftPositions.map((value, index) => (
+          value - shaftAnchor[index % 3]
+        )),
+      );
       const colors = new Float32Array(transforms.shafts.length * 6);
       for (let index = 0; index < transforms.shafts.length; index += 1) {
         const color = transforms.shafts[index].color;
@@ -212,6 +225,7 @@ export function createMonitoringBatch({
       }));
       const lines = new THREE.LineSegments(geometry, material);
       lines.name = 'MonitoringArrowShafts';
+      lines.position.set(...shaftAnchor);
       group.add(lines);
       drawObjectCount += 1;
     }
@@ -233,14 +247,19 @@ export function createMonitoringBatch({
         color: `#${colorKey}`,
         toneMapped: false,
       }));
-      const mesh = new THREE.InstancedMesh(
+      const mesh = ownInstancedMesh(new THREE.InstancedMesh(
         coneGeometry,
         material,
         instances.length,
-      );
+      ));
       mesh.name = `MonitoringArrowHeads:${colorKey}`;
+      const anchor = instances[0].matrix.slice(12, 15);
+      mesh.position.set(...anchor);
       for (let index = 0; index < instances.length; index += 1) {
         matrix.fromArray(instances[index].matrix);
+        matrix.elements[12] -= anchor[0];
+        matrix.elements[13] -= anchor[1];
+        matrix.elements[14] -= anchor[2];
         mesh.setMatrixAt(index, matrix);
       }
       mesh.instanceMatrix.needsUpdate = true;

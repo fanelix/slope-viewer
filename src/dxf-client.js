@@ -29,6 +29,32 @@ export function collectTransferables(...values) {
   return [...buffers].filter((buffer) => buffer.byteLength > 0);
 }
 
+function clonePayloadForWorker(operation, payload) {
+  if (operation === 'parse') return payload.slice(0);
+  if (payload.kind === 'points') {
+    return {
+      ...payload,
+      points: payload.points.slice(),
+      typeCount: payload.typeCount ? { ...payload.typeCount } : undefined,
+    };
+  }
+  const mesh = payload.mesh;
+  return {
+    ...payload,
+    typeCount: payload.typeCount ? { ...payload.typeCount } : undefined,
+    mesh: {
+      ...mesh,
+      x: mesh.x.slice(),
+      y: mesh.y.slice(),
+      z: mesh.z.slice(),
+      i: mesh.i.slice(),
+      j: mesh.j.slice(),
+      k: mesh.k.slice(),
+      stats: mesh.stats ? { ...mesh.stats } : undefined,
+    },
+  };
+}
+
 export function validateRawGeometry(rawGeometry) {
   if (!rawGeometry || typeof rawGeometry !== 'object') return false;
   if (rawGeometry.kind === 'mesh') {
@@ -133,18 +159,44 @@ export function createDxfClient({
     }
     request.worker = worker;
 
+    let workerPayload;
+    try {
+      // Keep the caller-owned payload intact until the worker succeeds. Module
+      // workers can construct successfully and still fail while loading or
+      // parsing, after the posted payload has already been detached.
+      workerPayload = clonePayloadForWorker(operation, payload);
+    } catch (error) {
+      worker.terminate();
+      request.worker = null;
+      return runSynchronously(request, payload, settings, error);
+    }
+
     const promise = new Promise((resolve, reject) => {
       request.reject = reject;
-      const finish = (callback, value) => {
-        if (request.settled) return;
-        request.settled = true;
+      const stopWorker = () => {
         if (request.timer != null) clearTimeout(request.timer);
+        request.timer = null;
         worker.onmessage = null;
         worker.onerror = null;
         worker.onmessageerror = null;
-        worker.terminate();
+        if (request.worker) {
+          request.worker.terminate();
+          request.worker = null;
+        }
+      };
+      const finish = (callback, value) => {
+        if (request.settled) return;
+        request.settled = true;
+        stopWorker();
         clearActive(request);
         callback(value);
+      };
+      const recoverSynchronously = (cause) => {
+        if (request.settled) return;
+        request.settled = true;
+        stopWorker();
+        request.settled = false;
+        runSynchronously(request, payload, settings, cause).then(resolve, reject);
       };
 
       worker.onmessage = (event) => {
@@ -172,14 +224,13 @@ export function createDxfClient({
         try {
           finish(resolve, validateResult(message, 'Worker'));
         } catch (error) {
-          finish(reject, error);
+          recoverSynchronously(error);
         }
       };
 
       worker.onerror = (event) => {
         event.preventDefault?.();
-        finish(
-          reject,
+        recoverSynchronously(
           workerError(
             event.error?.message || event.message || 'Worker failed',
             operation,
@@ -187,45 +238,27 @@ export function createDxfClient({
         );
       };
       worker.onmessageerror = () => {
-        finish(reject, workerError('Worker response could not be decoded', operation));
+        recoverSynchronously(
+          workerError('Worker response could not be decoded', operation),
+        );
       };
 
       request.timer = setTimeout(() => {
-        finish(
-          reject,
+        recoverSynchronously(
           workerError(`DXF worker timed out after ${timeoutMs} ms`, operation),
         );
       }, timeoutMs);
 
       const message = operation === 'parse'
-        ? { id: request.id, operation, buffer: payload, settings }
-        : { id: request.id, operation, rawGeometry: payload, settings };
+        ? { id: request.id, operation, buffer: workerPayload, settings }
+        : { id: request.id, operation, rawGeometry: workerPayload, settings };
       const transfer = operation === 'parse'
-        ? [payload]
-        : collectTransferables(payload);
+        ? [workerPayload]
+        : collectTransferables(workerPayload);
       try {
         worker.postMessage(message, transfer);
       } catch (error) {
-        if (request.timer != null) clearTimeout(request.timer);
-        worker.onmessage = null;
-        worker.onerror = null;
-        worker.onmessageerror = null;
-        worker.terminate();
-        request.settled = true;
-        clearActive(request);
-        const canFallback = operation === 'parse'
-          ? payload.byteLength > 0
-          : collectTransferables(payload).length > 0;
-        if (canFallback) {
-          active = request;
-          request.settled = false;
-          runSynchronously(request, payload, settings, error).then(resolve, reject);
-        } else {
-          reject(workerError(
-            `Worker rejected transferred data: ${error.message}`,
-            operation,
-          ));
-        }
+        recoverSynchronously(error);
       }
     });
 

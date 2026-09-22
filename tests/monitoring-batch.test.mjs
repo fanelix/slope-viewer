@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import * as THREE from 'three';
+import { WebGLObjects } from 'three/src/renderers/webgl/WebGLObjects.js';
 
 import {
   computeBatchTransforms,
@@ -190,6 +191,53 @@ test('sphere instances use category-local origins at national-grid coordinates',
   assert.deepEqual(localMatrix.elements.slice(12, 15), [25, 40, 1]);
 });
 
+test('shaft attributes and head instances preserve sub-metre national-grid positions', () => {
+  const point = {
+    id: 'HLO-279',
+    e0: 175185.121,
+    n0: 9046994.501,
+    z0: 121.125,
+    dE: 0.0037,
+    dN: -0.0049,
+    dZ: 0.0023,
+    disp2D: Math.hypot(0.0037, -0.0049),
+    category: { name: 'Waspada', color: '#f1c40f' },
+  };
+  const batch = createMonitoringBatch({
+    THREE,
+    CSS2DObject: FakeCss2DObject,
+    documentRef: createDocument(),
+    points: [point],
+    settings: { ...SETTINGS, zCenter: 100, zExag: 1 },
+  });
+
+  const shafts = batch.group.getObjectByName('MonitoringArrowShafts');
+  const shaftAttribute = shafts.geometry.getAttribute('position');
+  const reconstructedShaft = Array.from(shaftAttribute.array, (value, index) => (
+    value + shafts.position.getComponent(index % 3)
+  ));
+  const expectedShaft = batch.transforms.shafts.flatMap((shaft) => shaft.positions);
+  assert.equal(reconstructedShaft.length, expectedShaft.length);
+  for (let index = 0; index < expectedShaft.length; index += 1) {
+    assert.ok(
+      Math.abs(reconstructedShaft[index] - expectedShaft[index]) < 1e-5,
+      `shaft component ${index} lost precision`,
+    );
+  }
+
+  const head = batch.group.children.find((child) => (
+    child.name.startsWith('MonitoringArrowHeads:')
+  ));
+  const local = new THREE.Matrix4();
+  head.getMatrixAt(0, local);
+  head.updateMatrixWorld(true);
+  const reconstructedHead = new THREE.Matrix4()
+    .multiplyMatrices(head.matrixWorld, local)
+    .toArray();
+  const expectedHead = batch.transforms.horizontalHeads[0].matrix;
+  assertMatricesClose([reconstructedHead], [expectedHead], 1e-5);
+});
+
 test('labels remain conditional and preserve position and text', () => {
   const point = {
     id: 'MON-01',
@@ -279,4 +327,51 @@ test('update and dispose release each owned shared resource exactly once', () =>
 
   assert.ok([...currentDisposals.values()].every((count) => count === 1));
   assert.equal(group.children.length, 0);
+});
+
+test('update and dispose release every InstancedMesh GPU attribute', () => {
+  const points = [
+    {
+      id: 'A', e0: 175000, n0: 9047000, z0: 100,
+      dE: 0.01, dN: 0, dZ: 0.01, disp2D: 0.01,
+      category: { name: 'Aman', color: '#2ecc71' },
+    },
+  ];
+  const batch = createMonitoringBatch({
+    THREE,
+    CSS2DObject: FakeCss2DObject,
+    documentRef: createDocument(),
+    points,
+    settings: SETTINGS,
+  });
+  const removed = new Set();
+  const attributes = {
+    update() {},
+    remove(attribute) { removed.add(attribute); },
+  };
+  const objects = WebGLObjects(
+    { ARRAY_BUFFER: 0x8892 },
+    { get: (_object, geometry) => geometry, update() {} },
+    attributes,
+    { render: { frame: 1 } },
+  );
+  const oldInstances = batch.group.children.filter((child) => child.isInstancedMesh);
+  for (const instance of oldInstances) objects.update(instance);
+
+  batch.update({ points, settings: SETTINGS });
+  assert.deepEqual(
+    new Set(oldInstances.map((instance) => instance.instanceMatrix)),
+    removed,
+  );
+
+  const currentInstances = batch.group.children.filter((child) => child.isInstancedMesh);
+  for (const instance of currentInstances) objects.update(instance);
+  batch.dispose();
+  assert.deepEqual(
+    new Set([
+      ...oldInstances.map((instance) => instance.instanceMatrix),
+      ...currentInstances.map((instance) => instance.instanceMatrix),
+    ]),
+    removed,
+  );
 });

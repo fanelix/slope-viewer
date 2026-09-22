@@ -20,14 +20,14 @@ Hasil `node scripts/benchmark-dxf.mjs` pada DXF kanonik:
 
 | Ukuran | Parser umum | Streaming `3DFACE` |
 |---|---:|---:|
-| Waktu parse | 794,671 ms | 321,548 ms |
-| Peak heap teramati | 172.365.272 byte | 69.504.032 byte |
-| Heap delta | 148.248.576 byte | 45.635.120 byte |
-| Peak RSS | 310.980.608 byte | 159.870.976 byte |
+| Waktu parse | 760,208 ms | 316,935 ms |
+| Peak heap teramati | 171.125.416 byte | 69.751.520 byte |
+| Heap delta | 147.008.720 byte | 45.882.728 byte |
+| Peak RSS | 321.081.344 byte | 160.038.912 byte |
 | Vertex | 21.002 | 21.002 |
 | Triangle | 41.832 | 41.832 |
 
-Heap delta turun 69,217%, melewati activation gate 30%. Karena digest, vertex,
+Heap delta turun 68,789%, melewati activation gate 30%. Karena digest, vertex,
 dan triangle juga sama, `USE_STREAMING_3DFACE` diaktifkan. DXF tanpa layout
 `3DFACE` yang didukung atau DXF dengan pasangan group-code yang tidak aman
 tetap diarahkan otomatis ke parser umum.
@@ -72,9 +72,13 @@ error. Suite memverifikasi worker progress, timeout, transfer buffer, request
 ID stale, repeated reprocess, dan terminasi resource.
 
 Jalur kompatibilitas juga diuji: kegagalan membuat Worker memakai parser
-sinkron; ketiadaan `DecompressionStream` memakai raw DXF; kegagalan IndexedDB
-tidak menggagalkan load; raw fallback, upload manual, dan recovery setelah file
-invalid semuanya lulus.
+sinkron; kegagalan asynchronous sesudah Worker dibuat dan timeout juga memakai
+salinan payload yang tetap utuh untuk fallback sinkron. Ketiadaan
+`DecompressionStream` memakai raw DXF; kegagalan IndexedDB tidak menggagalkan
+load; raw fallback, upload manual, dan recovery setelah file invalid semuanya
+lulus. Manifest yang tampak valid tetapi memiliki hash, ukuran, atau path salah
+diabaikan melalui satu retry bounded ke path DXF kanonik dan hasil recovery
+tidak disimpan di cache dengan hash yang mencurigakan.
 
 ## Idle rendering
 
@@ -90,7 +94,9 @@ kecil berada di bawah budget. Akar masalahnya adalah tick elevasi yang dibuat
 sebagai objek `Line` terpisah. Batching tick dengan material identik menurunkan
 hasil kanonik menjadi **23 draw calls**, termasuk 9 draw object monitoring,
 tanpa perubahan screenshot. Artifact replacement memakai 9 draw calls. Kedua
-hasil berada di bawah budget default `<25`.
+hasil berada di bawah budget default `<25`. Budget tetap dikunci pada fixture
+performa immutable; smoke test sumber produksi memvalidasi load dan idle state
+secara dinamis agar perubahan bounds mingguan tidak ditolak oleh angka historis.
 
 ## Weekly replacement drill
 
@@ -111,6 +117,26 @@ tidak memakai asumsi count historis. Smoke render artifact replacement memuat
 gzip melalui worker, menampilkan 6 triangle, menghasilkan 0 page error, dan
 tidak meminta raw fallback (`manifest: 1`, `gzip: 1`, `raw: 0`).
 
+Perintah `npm run test:weekly` menjalankan seluruh 80 unit test dan 25 browser
+test dengan fixture tersebut sebagai sumber produksi, kemudian membangun site
+8-vertex/6-triangle. Ini memastikan assertion digest, jumlah triangle, bounds,
+dan draw call historis tidak kembali memblokir penggantian mingguan.
+
+## Post-review lifecycle hardening
+
+Panah monitoring sekarang memakai origin lokal untuk shaft dan setiap grup
+head. Rekonstruksi dari `Float32` BufferAttribute/instance matrix pada koordinat
+northing sekitar 9 juta meter mempertahankan posisi hingga toleransi 0,00001 m.
+Setiap `InstancedMesh` juga mengirim event `dispose`, dan test lifecycle Three.js
+memastikan seluruh `instanceMatrix` GPU attribute lama dilepas saat update dan
+dispose.
+
+Viewer membedakan `pagehide.persisted`: halaman BFCache hanya disuspensi lalu
+dirender ulang sekali pada `pageshow`, sedangkan navigasi final tetap melepas
+scene. Jika CSV berhasil tetapi terrain gagal, aplikasi mempertahankan data
+monitoring, menampilkan error topografi, dan membuka panel upload manual alih-
+alih melaporkan mode Auto yang parsial.
+
 ## Reproducible commands
 
 Ringkasan output run bersih:
@@ -123,12 +149,17 @@ $ npm run build:site
 Built _site: 21,002 vertices, 41,832 triangles, 2,313,888 gzip bytes
 
 $ npm test
-73 unit tests passed, 0 failed
-22 browser tests passed, 0 failed
+80 unit tests passed, 0 failed
+25 browser tests passed, 0 failed
+
+$ npm run test:weekly
+80 unit tests passed, 0 failed
+25 browser tests passed, 0 failed
+Built _site: 8 vertices, 6 triangles, 158 gzip bytes
 
 $ node scripts/benchmark-dxf.mjs
 equivalent: true
-heapImprovementRatio: 0.6921716131694917
+heapImprovementRatio: 0.6878911128537137
 activationGate.qualifies: true
 ```
 
