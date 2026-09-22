@@ -28,6 +28,8 @@ The implementation must preserve all of the following unless a later request exp
 - The existing zero-horizontal-motion north-pointing placeholder arrows remain unchanged in this performance-only branch.
 - GitHub Pages remains the runtime host; the application remains a static site with no backend.
 - Manual `.dxf` and `.csv` upload remains available.
+- The production topography can be replaced weekly by changing only `data/topografi.dxf`; no source-code edit, terminal command, local build, gzip creation, manifest edit, or screenshot-baseline update is required from the operator.
+- The normal weekly operating path is compatible with GitHub's browser UI while the DXF remains within GitHub's browser-upload limit.
 - Failure of an optimization layer must fall back to a functional path, not prevent the viewer from opening.
 
 ## 3. Non-goals
@@ -88,10 +90,10 @@ tests/
   assets.test.mjs
   ui.spec.mjs
   baselines/
+  fixtures/
+    terrain-sample.dxf
 data/
   topografi.dxf
-  topografi.dxf.gz
-  assets-manifest.json
   monitoring.csv
 lib/
   dxf-parser.js
@@ -100,6 +102,8 @@ lib/
 .github/workflows/
   verify.yml
 ```
+
+`topografi.dxf.gz` and `assets-manifest.json` are generated into the GitHub Pages deployment artifact. They are not manually maintained source files and are not required to be committed to the repository.
 
 Responsibilities:
 
@@ -118,7 +122,7 @@ Responsibilities:
 
 ### 6.1 Canonical and derived files
 
-`data/topografi.dxf` remains canonical. `data/topografi.dxf.gz` is a generated transport artifact. The gzip file must decompress byte-for-byte to the canonical DXF.
+`data/topografi.dxf` remains canonical. `data/topografi.dxf.gz` is a generated transport artifact created during the GitHub Pages build. The gzip file must decompress byte-for-byte to the canonical DXF.
 
 `data/assets-manifest.json` contains:
 
@@ -154,6 +158,22 @@ No asset optimization failure may block the canonical raw-DXF fallback.
 ### 6.3 Manual upload
 
 Manual uploads are read as `ArrayBuffer`, then transferred to the same worker pipeline. A manually uploaded file is not persisted unless it matches a known manifest hash; this avoids retaining user-selected files unexpectedly.
+
+### 6.4 Weekly topography replacement
+
+The operator workflow is intentionally limited to one source-file replacement:
+
+1. Open `data/topografi.dxf` in the GitHub repository.
+2. Replace/upload a new file using the same path and filename.
+3. Commit the change through the GitHub web interface.
+4. GitHub Actions validates the DXF, generates gzip and manifest files in a temporary Pages build directory, runs tests, and deploys only if every required check passes.
+5. The new manifest SHA-256 automatically invalidates the previous parsed-browser cache.
+
+If validation fails, the workflow fails before deployment and the previously deployed viewer/topography remains live.
+
+The current DXF is about 16.76 MB, below GitHub's 25 MiB browser-upload limit. If a future weekly DXF exceeds 25 MiB, browser-only replacement is no longer sufficient; a separate ingestion route or Git client/LFS workflow must be designed before that larger file is adopted. GitHub blocks normal repository files above 100 MiB.
+
+Weekly changes must retain the expected coordinate system and a DXF entity layout supported by the viewer. Geometry dimensions, vertex counts, triangle counts, bounding boxes, and screenshots are allowed to change when the source topography genuinely changes.
 
 ## 7. Worker and geometry design
 
@@ -333,7 +353,7 @@ Partial state is never presented as successfully loaded. A failed replacement ke
 
 ### 13.1 Geometry contract tests
 
-For the canonical DXF, verify:
+For the initial refactor baseline, verify the current canonical DXF against these recorded legacy values:
 
 - 41,833 parsed entities;
 - 41,832 3DFACE entities;
@@ -345,6 +365,8 @@ For the canonical DXF, verify:
 - every index is in range.
 
 Run the same contract for synchronous extraction and worker extraction.
+
+After the refactor is accepted, weekly production DXF updates do not need to retain the historical counts, hash, or bounding box. Instead, CI runs the legacy-reference and optimized extraction paths against the newly committed DXF and requires their coordinate/index hashes to match each other. CI also requires non-empty geometry, finite coordinates, valid indices, and successful rendering smoke tests.
 
 ### 13.2 Asset tests
 
@@ -375,7 +397,7 @@ Run the same contract for synchronous extraction and worker extraction.
 
 ### 13.5 Visual regression
 
-Use a pinned Playwright Chromium version and software rendering in CI. Capture fixed-size screenshots for:
+Use a pinned Playwright Chromium version and software rendering in CI. Visual regression uses a small immutable representative DXF fixture rather than the replaceable weekly production topography. Capture fixed-size screenshots for:
 
 - isometric default;
 - plan;
@@ -385,7 +407,7 @@ Use a pinned Playwright Chromium version and software rendering in CI. Capture f
 - wireframe mode;
 - labels enabled.
 
-Create legacy baselines from the pre-refactor viewer. The initial acceptance target is pixel-identical where deterministic; a small threshold is allowed only for platform rasterization differences and must not mask geometry, camera, color, or object-placement changes.
+Create legacy baselines from the pre-refactor viewer and the immutable fixture. The initial acceptance target is pixel-identical where deterministic; a small threshold is allowed only for platform rasterization differences and must not mask geometry, camera, color, or object-placement changes. Replacing the weekly production DXF therefore does not require manually approving new screenshots.
 
 ### 13.6 Performance assertions
 
@@ -402,17 +424,23 @@ Manual performance profiling is performed on desktop and a representative iPad/m
 
 ## 14. Continuous integration and deployment
 
-Add a verification workflow that runs:
+Add a custom GitHub Pages workflow that runs:
 
 1. dependency installation with a lockfile;
-2. deterministic asset verification;
-3. Node unit/contract tests;
-4. Playwright visual tests;
-5. static-file/path validation.
+2. production DXF parsing and structural validation;
+3. deterministic gzip and manifest generation into a temporary `_site` directory;
+4. byte-for-byte gzip round-trip verification;
+5. Node unit/contract tests;
+6. Playwright visual tests using the immutable fixture;
+7. static-file/path validation;
+8. Pages artifact upload;
+9. deployment only for a successful push to the default branch.
 
-GitHub Pages continues to deploy the repository as static content. No production Node server, generated JavaScript bundle, or runtime environment variable is introduced.
+Pull requests run the same build and validation but do not deploy. A failed default-branch build does not replace the last successful Pages deployment.
 
-Generated assets are committed so Pages can serve them directly. CI fails if the canonical DXF changes without regenerated gzip/manifest artifacts and updated approved geometry baselines.
+GitHub Pages continues to serve static content from the generated artifact. No production Node server, generated JavaScript bundle, or runtime environment variable is introduced.
+
+Generated gzip and manifest files exist only in the Pages artifact. CI fails if the canonical DXF cannot be parsed, if optimized and reference extraction disagree, or if the generated gzip/manifest does not match the canonical file. A legitimate weekly geometry change does not require code edits or updated visual baselines.
 
 ## 15. Implementation phases
 
@@ -465,6 +493,7 @@ The change is complete when:
 11. No resource-lifecycle errors or detached-buffer state leaks occur during repeated load/reprocess cycles.
 12. CI passes from a clean checkout.
 13. GitHub Pages deployment succeeds on the feature branch/PR validation path.
+14. Replacing only `data/topografi.dxf` causes automatic validation, cache invalidation, artifact regeneration, and deployment without manual generated-file maintenance.
 
 ## 17. Rollback strategy
 
@@ -485,9 +514,15 @@ Reviewers must explicitly verify:
 - byte and hash equivalence across raw/gzip/worker/cache paths;
 - transfer-list correctness and detached-buffer recovery;
 - cache invalidation when either DXF or algorithm changes;
+- weekly production-DXF replacement without hard-coded legacy geometry or screenshot failures;
 - fallback behavior on Safari/iOS-compatible modern browsers;
 - no missed invalidation event that leaves a stale frame;
 - identical ArrowHelper-compatible cone transforms;
 - correct resource disposal after repeated controls, loads, and reprocesses;
 - visual comparisons at all four camera presets;
 - no accidental Three.js version or default-render-state changes.
+
+## 19. Operational references
+
+- GitHub browser uploads are limited to 25 MiB per file and normal Git objects are blocked above 100 MiB: <https://docs.github.com/en/repositories/working-with-files/managing-large-files/about-large-files-on-github>
+- GitHub Pages supports custom Actions workflows that build, upload, and deploy a static artifact: <https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages>
